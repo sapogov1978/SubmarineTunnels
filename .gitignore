@@ -51,3 +51,7 @@ crashlytics-build.properties
 
 # macOS
 .DS_Store
+
+.vscode/
+
+SubmarineTunnels_BurstDebugInformation_DoNotShip/
