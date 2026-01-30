@@ -10,8 +10,14 @@ public class Rock : Obstacle
     [SerializeField] private bool rotateWhileFalling = true;
     [SerializeField] private float rotationSpeed = 30f;
 
+    [Header("Movement")]
+    [SerializeField] private float fallSpeed = 2f; // должна совпадать со scrollSpeed туннеля
+
     void Update()
     {
+        // Движение вниз (падение)
+        transform.Translate(Vector3.down * fallSpeed * Time.deltaTime, Space.World);
+
         // Вращение камня при падении для визуального эффекта
         if (rotateWhileFalling)
         {

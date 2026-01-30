@@ -6,6 +6,9 @@ using UnityEngine;
 /// </summary>
 public class Debris : Obstacle
 {
+    [Header("Movement")]
+    [SerializeField] private float fallSpeed = 2f; // должна совпадать со scrollSpeed туннеля
+
     [Header("Debris Specific")]
     [SerializeField] private bool driftSideways = true;
     [SerializeField] private float driftSpeed = 0.5f;
@@ -22,6 +25,9 @@ public class Debris : Obstacle
 
     void Update()
     {
+        // Движение вниз (падение)
+        transform.Translate(Vector3.down * fallSpeed * Time.deltaTime, Space.World);
+
         // Обломки слегка дрейфуют влево-вправо при падении
         if (driftSideways)
         {

@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Спавнер препятствий в туннеле
-/// Управляет созданием камней и обломков с использованием Object Pooling
+/// УЛУЧШЕННЫЙ спавнер препятствий в туннеле
+/// Учитывает ширину туннеля и обеспечивает возможность прохода
 /// </summary>
 public class ObstacleSpawner : MonoBehaviour
 {
@@ -11,27 +11,36 @@ public class ObstacleSpawner : MonoBehaviour
     [SerializeField] private Debris debrisPrefab;
 
     [Header("Spawn Settings")]
-    [SerializeField] private float minSpawnInterval = 1.5f; // минимальный интервал между спавнами
-    [SerializeField] private float maxSpawnInterval = 3.5f; // максимальный интервал
-    [SerializeField] private float spawnYOffset = 15f; // высота над камерой для спавна
+    [SerializeField] private float minSpawnInterval = 0.5f;
+    [SerializeField] private float maxSpawnInterval = 1.5f;
+    [SerializeField] private float spawnYOffset = 15f;
+
+    [Header("Tunnel Integration")]
+    [SerializeField] private TunnelGenerator tunnelGenerator;
+    [SerializeField] private float submarineWidth = 0.8f; // ширина батискафа
+    [SerializeField] private float safetyMargin = 0.1f; // дополнительный запас для прохода
+
+    [Header("Width-Based Spawning")]
+    [SerializeField] private float minWidthToSpawn = 1.8f; // минимальная ширина туннеля для спавна
+    [SerializeField] private float wideWidthThreshold = 2.2f; // "широкий" туннель
+    [SerializeField] private int maxObstaclesInWideArea = 3; // макс препятствий в широкой части
 
     [Header("Spawn Chances")]
     [Range(0f, 1f)]
-    [SerializeField] private float rockChance = 0.6f; // 60% камни, 40% обломки
+    [SerializeField] private float rockChance = 0.7f; // шанс спавна камня вместо обломков
 
-    [Header("Positioning")]
-    [SerializeField] private Camera mainCamera;
-    [SerializeField] private float minDistanceFromWalls = 0.3f; // минимальное расстояние от стенок туннеля
-    [SerializeField] private float tunnelWidth = 1.5f; // текущая ширина туннеля (обновляется из TunnelGenerator)
+    [Header("Obstacle Sizing")]
+    [SerializeField] private float minObstacleScale = 0.5f; 
+    [SerializeField] private float maxObstacleScale = 1.0f; 
 
     [Header("Object Pooling")]
-    [SerializeField] private int initialRockPoolSize = 15;
+    [SerializeField] private int initialRockPoolSize = 15; 
     [SerializeField] private int initialDebrisPoolSize = 20;
 
     [Header("Difficulty Scaling")]
     [SerializeField] private bool increaseDifficulty = true;
-    [SerializeField] private float difficultyIncreaseRate = 0.95f; // множитель для интервалов (меньше = чаще спавн)
-    [SerializeField] private float minInterval = 0.8f; // минимально возможный интервал
+    [SerializeField] private float difficultyIncreaseRate = 0.95f;
+    [SerializeField] private float minInterval = 0.8f;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = false;
@@ -42,43 +51,57 @@ public class ObstacleSpawner : MonoBehaviour
     private float spawnTimer;
     private float nextSpawnInterval;
     private float difficultyTimer;
+    private Camera mainCamera;
+
+    // Данные о текущей ширине туннеля
+    private float currentTunnelWidth = 1.5f;
+    private float currentTunnelOffset = 0f;
 
     void Start()
     {
-        if (!mainCamera) mainCamera = Camera.main;
+        mainCamera = Camera.main;
 
-        // Создаём пулы объектов
+        // Находим TunnelGenerator если не назначен
+        if (tunnelGenerator == null)
+        {
+            tunnelGenerator = FindObjectOfType<TunnelGenerator>();
+            if (tunnelGenerator == null)
+            {
+                Debug.LogError("[ObstacleSpawner] TunnelGenerator not found!");
+                enabled = false;
+                return;
+            }
+        }
+
         InitializePools();
-
-        // Устанавливаем первый интервал
         SetNextSpawnInterval();
 
         if (showDebugLogs)
-            Debug.Log($"[ObstacleSpawner] Initialized. Pools: Rocks={initialRockPoolSize}, Debris={initialDebrisPoolSize}");
+            Debug.Log($"[ObstacleSpawner] Initialized. Min width to spawn: {minWidthToSpawn}");
     }
 
     void Update()
     {
-        // Не спавним если игра не активна
         if (GameManager.Instance != null && !GameManager.Instance.IsPlaying())
             return;
 
-        // Таймер спавна
+        // Получаем текущую ширину туннеля
+        UpdateTunnelInfo();
+
         spawnTimer += Time.deltaTime;
 
         if (spawnTimer >= nextSpawnInterval)
         {
-            SpawnObstacle();
+            TrySpawnObstacles();
             spawnTimer = 0f;
             SetNextSpawnInterval();
         }
 
-        // Увеличение сложности со временем
+        // Увеличение сложности
         if (increaseDifficulty)
         {
             difficultyTimer += Time.deltaTime;
             
-            // Каждые 10 секунд уменьшаем интервалы
             if (difficultyTimer >= 10f)
             {
                 difficultyTimer = 0f;
@@ -92,92 +115,178 @@ public class ObstacleSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// Инициализация пулов объектов
+    /// Получает информацию о текущей ширине туннеля из TunnelGenerator
     /// </summary>
+    private void UpdateTunnelInfo()
+    {
+        if (tunnelGenerator == null) return;
+
+        // Используем рефлексию чтобы получить приватные поля
+        var currentWidthField = typeof(TunnelGenerator).GetField("currentWidth", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var lastOffsetField = typeof(TunnelGenerator).GetField("lastOffset", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        if (currentWidthField != null)
+            currentTunnelWidth = (float)currentWidthField.GetValue(tunnelGenerator);
+        
+        if (lastOffsetField != null)
+            currentTunnelOffset = (float)lastOffsetField.GetValue(tunnelGenerator);
+    }
+
+    /// <summary>
+    /// Пытается заспавнить препятствия с учётом ширины туннеля
+    /// </summary>
+    private void TrySpawnObstacles()
+    {
+        // Проверка 1: Туннель слишком узкий?
+        if (currentTunnelWidth < minWidthToSpawn)
+        {
+            if (showDebugLogs)
+                Debug.Log($"[ObstacleSpawner] Tunnel too narrow ({currentTunnelWidth:F2}), skipping spawn");
+            return;
+        }
+
+        // Проверка 2: Достаточно ли места для прохода?
+        float availableSpace = currentTunnelWidth - submarineWidth - (safetyMargin * 2);
+        if (availableSpace < 0.3f) // минимум 0.3 единицы для препятствия
+        {
+            if (showDebugLogs)
+                Debug.Log($"[ObstacleSpawner] Not enough space for obstacle, skipping");
+            return;
+        }
+
+        // Определяем сколько препятствий можно заспавнить
+        int obstacleCount = CalculateObstacleCount();
+
+        for (int i = 0; i < obstacleCount; i++)
+        {
+            SpawnSingleObstacle();
+        }
+    }
+
+    /// <summary>
+    /// Вычисляет количество препятствий в зависимости от ширины
+    /// </summary>
+    private int CalculateObstacleCount()
+    {
+        if (currentTunnelWidth >= wideWidthThreshold)
+        {
+            // Широкая часть - может быть несколько препятствий
+            return Random.Range(1, maxObstaclesInWideArea + 1);
+        }
+        else
+        {
+            // Средняя ширина - одно препятствие
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// Спавнит одно препятствие
+    /// </summary>
+    private void SpawnSingleObstacle()
+    {
+        bool spawnRock = Random.value <= rockChance;
+        Vector3 spawnPosition = GetSafeSpawnPosition();
+        float obstacleScale = CalculateObstacleScale();
+
+        if (spawnRock && rockPrefab != null)
+        {
+            Rock rock = rockPool.Get(spawnPosition, Quaternion.identity);
+            rock.transform.localScale = Vector3.one * obstacleScale;
+            
+            if (showDebugLogs)
+                Debug.Log($"[ObstacleSpawner] Spawned Rock at {spawnPosition}, scale: {obstacleScale:F2}");
+        }
+        else if (!spawnRock && debrisPrefab != null)
+        {
+            Debris debris = debrisPool.Get(spawnPosition, Quaternion.identity);
+            debris.transform.localScale = Vector3.one * obstacleScale;
+            
+            if (showDebugLogs)
+                Debug.Log($"[ObstacleSpawner] Spawned Debris at {spawnPosition}, scale: {obstacleScale:F2}");
+        }
+    }
+
+    /// <summary>
+    /// Вычисляет безопасную позицию для спавна (гарантирует проход)
+    /// </summary>
+    private Vector3 GetSafeSpawnPosition()
+    {
+        float spawnX;
+        float spawnY = mainCamera.transform.position.y + spawnYOffset;
+
+        // Вычисляем границы туннеля с учётом смещения
+        float halfWidth = currentTunnelWidth / 2f;
+        float leftWall = currentTunnelOffset - halfWidth;
+        float rightWall = currentTunnelOffset + halfWidth;
+
+        // Вычисляем зону где могут быть препятствия (с учётом прохода для батискафа)
+        float passageWidth = submarineWidth + (safetyMargin * 2);
+        float obstacleZoneWidth = currentTunnelWidth - passageWidth;
+
+        if (obstacleZoneWidth <= 0.3f)
+        {
+            // Если места совсем мало - спавним в центре туннеля (с небольшим смещением)
+            spawnX = currentTunnelOffset + Random.Range(-0.2f, 0.2f);
+            return new Vector3(spawnX, spawnY, 0f);
+        }
+
+        // Случайно выбираем: слева от прохода или справа
+        bool spawnLeft = Random.value > 0.5f;
+        
+        if (spawnLeft)
+        {
+            // Левая зона (между левой стеной и проходом)
+            float leftZoneMin = leftWall + 0.2f; // отступ от стены
+            float leftZoneMax = currentTunnelOffset - (passageWidth / 2f) - 0.1f;
+            spawnX = Random.Range(leftZoneMin, leftZoneMax);
+        }
+        else
+        {
+            // Правая зона (между проходом и правой стеной)
+            float rightZoneMin = currentTunnelOffset + (passageWidth / 2f) + 0.1f;
+            float rightZoneMax = rightWall - 0.2f; // отступ от стены
+            spawnX = Random.Range(rightZoneMin, rightZoneMax);
+        }
+
+        return new Vector3(spawnX, spawnY, 0f);
+    }
+
+    /// <summary>
+    /// Вычисляет размер препятствия в зависимости от ширины туннеля
+    /// </summary>
+    private float CalculateObstacleScale()
+    {
+        // В узких местах - мелкие препятствия
+        // В широких местах - крупные препятствия
+        float normalizedWidth = Mathf.InverseLerp(minWidthToSpawn, wideWidthThreshold, currentTunnelWidth);
+        float scale = Mathf.Lerp(minObstacleScale, maxObstacleScale, normalizedWidth);
+        
+        // Добавляем небольшую случайность
+        scale *= Random.Range(0.85f, 1.15f);
+        
+        return Mathf.Clamp(scale, minObstacleScale, maxObstacleScale);
+    }
+
     private void InitializePools()
     {
-        // Создаём родительские объекты для организации иерархии
         Transform rockParent = new GameObject("RockPool").transform;
         rockParent.SetParent(transform);
 
         Transform debrisParent = new GameObject("DebrisPool").transform;
         debrisParent.SetParent(transform);
 
-        // Инициализируем пулы
         rockPool = new ObjectPool<Rock>(rockPrefab, initialRockPoolSize, rockParent);
         debrisPool = new ObjectPool<Debris>(debrisPrefab, initialDebrisPoolSize, debrisParent);
     }
 
-    /// <summary>
-    /// Спавн одного препятствия
-    /// </summary>
-    private void SpawnObstacle()
-    {
-        // Определяем тип препятствия случайным образом
-        bool spawnRock = Random.value <= rockChance;
-
-        // Получаем позицию спавна
-        Vector3 spawnPosition = GetSpawnPosition();
-
-        // Спавним из пула
-        if (spawnRock && rockPrefab != null)
-        {
-            Rock rock = rockPool.Get(spawnPosition, Quaternion.identity);
-            
-            if (showDebugLogs)
-                Debug.Log($"[ObstacleSpawner] Spawned Rock at {spawnPosition}");
-        }
-        else if (!spawnRock && debrisPrefab != null)
-        {
-            Debris debris = debrisPool.Get(spawnPosition, Quaternion.identity);
-            
-            if (showDebugLogs)
-                Debug.Log($"[ObstacleSpawner] Spawned Debris at {spawnPosition}");
-        }
-    }
-
-    /// <summary>
-    /// Получить случайную позицию спавна внутри туннеля
-    /// </summary>
-    private Vector3 GetSpawnPosition()
-    {
-        if (!mainCamera)
-        {
-            Debug.LogError("[ObstacleSpawner] Main camera not found!");
-            return Vector3.zero;
-        }
-
-        // Y позиция - выше камеры
-        float spawnY = mainCamera.transform.position.y + spawnYOffset;
-
-        // X позиция - внутри туннеля с учётом отступов от стенок
-        float halfWidth = tunnelWidth / 2f;
-        float minX = -halfWidth + minDistanceFromWalls;
-        float maxX = halfWidth - minDistanceFromWalls;
-        float spawnX = Random.Range(minX, maxX);
-
-        return new Vector3(spawnX, spawnY, 0f);
-    }
-
-    /// <summary>
-    /// Установить следующий интервал спавна
-    /// </summary>
     private void SetNextSpawnInterval()
     {
         nextSpawnInterval = Random.Range(minSpawnInterval, maxSpawnInterval);
     }
 
-    /// <summary>
-    /// Обновить ширину туннеля (вызывается из TunnelGenerator)
-    /// </summary>
-    public void UpdateTunnelWidth(float newWidth)
-    {
-        tunnelWidth = newWidth;
-    }
-
-    /// <summary>
-    /// Вернуть препятствие в пул (вызывается когда препятствие уходит за пределы экрана)
-    /// </summary>
     public void ReturnToPool(Obstacle obstacle)
     {
         if (obstacle is Rock rock)
@@ -190,55 +299,63 @@ public class ObstacleSpawner : MonoBehaviour
         }
     }
 
-    // DEBUG: Визуализация зоны спавна
+    // Публичный метод для обновления ширины туннеля (опциональный)
+    public void UpdateTunnelWidth(float width, float offset = 0f)
+    {
+        currentTunnelWidth = width;
+        currentTunnelOffset = offset;
+    }
+
+    // DEBUG: Визуализация зон спавна
     void OnDrawGizmos()
     {
-        if (!showGizmos || !mainCamera) return;
+        if (!showGizmos || !Application.isPlaying || mainCamera == null) return;
 
-        Gizmos.color = Color.yellow;
-        
         float spawnY = mainCamera.transform.position.y + spawnYOffset;
-        float halfWidth = tunnelWidth / 2f;
-        float minX = -halfWidth + minDistanceFromWalls;
-        float maxX = halfWidth - minDistanceFromWalls;
 
-        // Линия зоны спавна
-        Gizmos.DrawLine(
-            new Vector3(minX, spawnY, 0),
-            new Vector3(maxX, spawnY, 0)
-        );
+        // Границы туннеля
+        float halfWidth = currentTunnelWidth / 2f;
+        float leftWall = currentTunnelOffset - halfWidth;
+        float rightWall = currentTunnelOffset + halfWidth;
 
-        // Маркеры границ
-        Gizmos.DrawWireSphere(new Vector3(minX, spawnY, 0), 0.2f);
-        Gizmos.DrawWireSphere(new Vector3(maxX, spawnY, 0), 0.2f);
+        // Зона прохода (безопасная для игрока)
+        float passageWidth = submarineWidth + (safetyMargin * 2);
+        float passageLeft = currentTunnelOffset - (passageWidth / 2f);
+        float passageRight = currentTunnelOffset + (passageWidth / 2f);
+
+        // Рисуем границы туннеля (жёлтый)
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawLine(new Vector3(leftWall, spawnY - 2, 0), new Vector3(leftWall, spawnY + 2, 0));
+        Gizmos.DrawLine(new Vector3(rightWall, spawnY - 2, 0), new Vector3(rightWall, spawnY + 2, 0));
+
+        // Рисуем зону прохода (зелёный)
+        Gizmos.color = Color.green;
+        Gizmos.DrawLine(new Vector3(passageLeft, spawnY - 1, 0), new Vector3(passageLeft, spawnY + 1, 0));
+        Gizmos.DrawLine(new Vector3(passageRight, spawnY - 1, 0), new Vector3(passageRight, spawnY + 1, 0));
+        Gizmos.DrawLine(new Vector3(passageLeft, spawnY, 0), new Vector3(passageRight, spawnY, 0));
+
+        // Рисуем зоны где могут быть препятствия (красный)
+        Gizmos.color = Color.red;
+        // Левая зона
+        Gizmos.DrawLine(new Vector3(leftWall + 0.2f, spawnY, 0), new Vector3(passageLeft - 0.1f, spawnY, 0));
+        // Правая зона
+        Gizmos.DrawLine(new Vector3(passageRight + 0.1f, spawnY, 0), new Vector3(rightWall - 0.2f, spawnY, 0));
     }
 
-    // DEBUG методы для тестирования
     #if UNITY_EDITOR
-    [ContextMenu("Test: Spawn Rock")]
-    private void TestSpawnRock()
+    [ContextMenu("Test: Spawn in Current Width")]
+    private void TestSpawnInCurrentWidth()
     {
-        if (rockPrefab != null)
-        {
-            Rock rock = rockPool.Get(GetSpawnPosition(), Quaternion.identity);
-            Debug.Log("[ObstacleSpawner] Test rock spawned");
-        }
+        UpdateTunnelInfo();
+        Debug.Log($"Current tunnel width: {currentTunnelWidth:F2}, offset: {currentTunnelOffset:F2}");
+        TrySpawnObstacles();
     }
 
-    [ContextMenu("Test: Spawn Debris")]
-    private void TestSpawnDebris()
+    [ContextMenu("Debug: Show Current Tunnel Info")]
+    private void ShowTunnelInfo()
     {
-        if (debrisPrefab != null)
-        {
-            Debris debris = debrisPool.Get(GetSpawnPosition(), Quaternion.identity);
-            Debug.Log("[ObstacleSpawner] Test debris spawned");
-        }
-    }
-
-    [ContextMenu("Debug: Show Pool Sizes")]
-    private void ShowPoolSizes()
-    {
-        Debug.Log($"[ObstacleSpawner] Rock Pool: {rockPool.GetPoolSize()}, Debris Pool: {debrisPool.GetPoolSize()}");
+        UpdateTunnelInfo();
+        Debug.Log($"[ObstacleSpawner] Width: {currentTunnelWidth:F2}, Offset: {currentTunnelOffset:F2}, Can spawn: {currentTunnelWidth >= minWidthToSpawn}");
     }
     #endif
 }
