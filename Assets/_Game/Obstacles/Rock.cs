@@ -6,10 +6,6 @@ using UnityEngine;
 /// </summary>
 public class Rock : Obstacle
 {
-    [Header("Rock Specific")]
-    [SerializeField] private bool rotateWhileFalling = true;
-    [SerializeField] private float rotationSpeed = 30f;
-
     [Header("Movement")]
     [SerializeField] private float fallSpeed = 2f; // должна совпадать со scrollSpeed туннеля
 
@@ -17,12 +13,8 @@ public class Rock : Obstacle
     {
         // Движение вниз (падение)
         transform.Translate(Vector3.down * fallSpeed * Time.deltaTime, Space.World);
-
-        // Вращение камня при падении для визуального эффекта
-        if (rotateWhileFalling)
-        {
-            transform.Rotate(0, 0, rotationSpeed * Time.deltaTime);
-        }
+        
+        // Камни больше НЕ вращаются (статичные скалы)
     }
 
     protected override void OnHit(GameObject player)

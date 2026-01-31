@@ -12,15 +12,20 @@ public class Debris : Obstacle
     [Header("Debris Specific")]
     [SerializeField] private bool driftSideways = true;
     [SerializeField] private float driftSpeed = 0.5f;
-    [SerializeField] private float driftAmplitude = 0.3f;
+    [SerializeField] private float driftAmplitude = 0.2f; // Уменьшена амплитуда
 
     private float driftTimer = 0f;
     private float startX;
+    private float minX = -2f; // Границы будут обновляться
+    private float maxX = 2f;
 
     void Start()
     {
         startX = transform.position.x;
-        driftTimer = Random.Range(0f, 2f * Mathf.PI); // случайное начальное смещение
+        driftTimer = Random.Range(0f, 2f * Mathf.PI);
+        
+        // Устанавливаем границы дрейфа
+        UpdateDriftBounds();
     }
 
     void Update()
@@ -36,7 +41,26 @@ public class Debris : Obstacle
             
             Vector3 pos = transform.position;
             pos.x = startX + offsetX;
+            
+            // ИСПРАВЛЕНИЕ ПРОБЛЕМЫ 2: Clamp чтобы не выходить за границы
+            pos.x = Mathf.Clamp(pos.x, minX, maxX);
+            
             transform.position = pos;
+        }
+    }
+
+    private void UpdateDriftBounds()
+    {
+        // Пытаемся получить границы от TunnelGenerator
+        TunnelGenerator tunnel = FindObjectOfType<TunnelGenerator>();
+        if (tunnel != null)
+        {
+            float leftWall, rightWall;
+            tunnel.GetTunnelBounds(out leftWall, out rightWall);
+            
+            // Устанавливаем границы с небольшим отступом
+            minX = leftWall + 0.3f;
+            maxX = rightWall - 0.3f;
         }
     }
 
