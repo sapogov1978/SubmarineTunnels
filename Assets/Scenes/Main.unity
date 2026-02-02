@@ -1273,25 +1273,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rockPrefab: {fileID: 8506743268597302154, guid: 52e5e56feaa00c443b1996245c40aaa2, type: 3}
   debrisPrefab: {fileID: 413212105757274719, guid: 6c796d4e70948224d9299f7c4b0692fc, type: 3}
-  minSpawnInterval: 0.5
-  maxSpawnInterval: 1
-  spawnYOffset: 3
-  initialDelay: 1
-  tunnelGenerator: {fileID: 1555287552}
-  submarineWidth: 0.25
+  spawnChance: 0.6
+  submarineRadius: 0.125
+  maxRockRadius: 0.15
+  maxDebrisRadius: 0.12
+  minObstacleRadius: 0.08
   safetyMargin: 0.1
-  minWidthToSpawn: 0.5
-  rockChance: 0.8
-  minObstacleScale: 0.25
-  maxObstacleScale: 2
-  minDistanceBetweenObstacles: 0.5
   initialRockPoolSize: 100
   initialDebrisPoolSize: 75
-  increaseDifficulty: 1
-  difficultyIncreaseRate: 0.95
-  minInterval: 0.8
   showDebugLogs: 1
-  showGizmos: 1
 --- !u!4 &1436356514
 Transform:
   m_ObjectHideFlags: 0

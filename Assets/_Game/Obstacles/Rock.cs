@@ -1,37 +1,38 @@
 using UnityEngine;
 
 /// <summary>
-/// Камень - стандартное препятствие
-/// Наносит средний урон при столкновении
+/// Камень - препятствие которое двигается вниз синхронно с туннелем
 /// </summary>
 public class Rock : Obstacle
 {
     [Header("Movement")]
-    [SerializeField] private float fallSpeed = 2f; // должна совпадать со scrollSpeed туннеля
+    [SerializeField] private float scrollSpeed = 2f;
 
     void Update()
     {
-        // Движение вниз (падение)
-        transform.Translate(Vector3.down * fallSpeed * Time.deltaTime, Space.World);
-        
-        // Камни больше НЕ вращаются (статичные скалы)
+        // Движемся вниз синхронно с туннелем
+        transform.Translate(Vector3.down * scrollSpeed * Time.deltaTime, Space.World);
     }
 
     protected override void OnHit(GameObject player)
     {
-        // Вызываем базовую логику
         base.OnHit(player);
 
-        // Дополнительная логика для камней (если нужна)
         if (showDebugLogs)
-            Debug.Log("[Rock] Destroyed after hit");
+            Debug.Log("[Rock] Hit and destroyed");
     }
 
     public override void ResetObstacle()
     {
         base.ResetObstacle();
-        
-        // Сброс вращения при переиспользовании
         transform.rotation = Quaternion.identity;
+    }
+
+    /// <summary>
+    /// Устанавливает скорость скроллинга (вызывается из ObstacleSpawner)
+    /// </summary>
+    public void SetScrollSpeed(float speed)
+    {
+        scrollSpeed = speed;
     }
 }

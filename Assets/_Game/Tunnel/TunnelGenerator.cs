@@ -1,6 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Генератор туннеля
+/// ПРАВИЛЬНО: Препятствия спавнятся ПРИ СОЗДАНИИ сегмента с его параметрами
+/// </summary>
 public class TunnelGenerator : MonoBehaviour
 {
     [Header("Prefab & Settings")]
@@ -13,7 +17,7 @@ public class TunnelGenerator : MonoBehaviour
 
     [Header("Screen Settings")]
     [SerializeField] private Camera mainCamera;
-
+    
     [Header("Obstacle Integration")]
     [SerializeField] private ObstacleSpawner obstacleSpawner;
 
@@ -45,15 +49,18 @@ public class TunnelGenerator : MonoBehaviour
         float screenHeight = mainCamera.orthographicSize * 2f;
         segmentsOnScreen = Mathf.CeilToInt(screenHeight / segmentHeight) + 2;
 
-        // ИСПРАВЛЕНИЕ ПРОБЛЕМЫ 1: Начинаем спавн с НИЖНЕЙ части экрана
         lastTopY = -mainCamera.orthographicSize - segmentHeight;
+        lastOffset = 0f;
 
         for (int i = 0; i < segmentsOnScreen; i++)
         {
             SpawnSegment();
         }
 
-        Debug.Log($"[TunnelGenerator] Started. Initial Y: {lastTopY:F2}, Segments: {segmentsOnScreen}");
+        if (obstacleSpawner != null)
+        {
+            obstacleSpawner.SetScrollSpeed(scrollSpeed);
+        }
     }
 
     void Update()
@@ -66,13 +73,14 @@ public class TunnelGenerator : MonoBehaviour
         if (segments.Count > 0)
         {
             var lastSeg = segments.Peek();
-            if (lastSeg.GetTopY() + lastSeg.transform.position.y < mainCamera.orthographicSize)
+            if (lastSeg.GetTopY() < mainCamera.orthographicSize)
             {
                 SpawnSegment();
             }
         }
 
-        while (segments.Count > 0 && segments.Peek().GetBottomY() < -mainCamera.orthographicSize)
+        float destroyY = -mainCamera.orthographicSize - (segmentHeight * 2);
+        while (segments.Count > 0 && segments.Peek().GetBottomY() < destroyY)
         {
             Destroy(segments.Dequeue().gameObject);
         }
@@ -95,11 +103,6 @@ public class TunnelGenerator : MonoBehaviour
         
         float step = 1f / narrowingSegments;
         currentWidth = Mathf.Lerp(currentWidth, targetWidth, step);
-
-        if (obstacleSpawner != null)
-        {
-            obstacleSpawner.UpdateTunnelWidth(currentWidth, lastOffset);
-        }
 
         float usableWidth = screenHalfWidth * 2f - (uiMargin * 2f);
         float maxAllowedOffset = (usableWidth - currentWidth) / 2f;
@@ -129,69 +132,22 @@ public class TunnelGenerator : MonoBehaviour
 
         segments.Enqueue(seg);
 
+        // КЛЮЧЕВОЙ МОМЕНТ: Спавним препятствие СРАЗУ с параметрами этого сегмента
+        if (obstacleSpawner != null)
+        {
+            // Передаём КОНЕЧНЫЕ параметры сегмента (его верх)
+            obstacleSpawner.SpawnObstacleForSegment(
+                posY + segmentHeight,  // Y верха сегмента
+                newOffset,             // Offset КОНЦА сегмента
+                currentWidth           // Ширина КОНЦА сегмента
+            );
+        }
+
         prevWidth = currentWidth;
         lastOffset = newOffset;
         lastTopY = posY;
     }
-
-    // ПУБЛИЧНЫЕ МЕТОДЫ (ИСПРАВЛЕНИЕ ПРОБЛЕМЫ 2)
-    public float GetCurrentWidth() { return currentWidth; }
-    public float GetCurrentOffset() { return lastOffset; }
     
-    public void GetTunnelBounds(out float leftWall, out float rightWall)
-    {
-        float halfWidth = currentWidth / 2f;
-        leftWall = lastOffset - halfWidth;
-        rightWall = lastOffset + halfWidth;
-    }
-    
-    private void OnDrawGizmos()
-    {
-        if (!Application.isPlaying || mainCamera == null) return;
-        
-        Gizmos.color = Color.yellow;
-        float screenWidth = mainCamera.orthographicSize * mainCamera.aspect * 2f;
-        float usableWidth = screenWidth - (uiMargin * 2f);
-        float halfUsable = usableWidth / 2f;
-        
-        Gizmos.DrawLine(
-            new Vector3(-halfUsable, -10, 0),
-            new Vector3(-halfUsable, 30, 0)
-        );
-        Gizmos.DrawLine(
-            new Vector3(halfUsable, -10, 0),
-            new Vector3(halfUsable, 30, 0)
-        );
-    }
-
-    public bool GetWallsAtY(float worldY, out float leftX, out float rightX)
-    {
-        foreach (var seg in segments)
-        {
-            float bottom = seg.GetBottomY();
-            float top = seg.GetTopY();
-
-            if (worldY >= bottom && worldY <= top)
-            {
-                float t = Mathf.InverseLerp(bottom, top, worldY);
-
-                leftX = Mathf.Lerp(seg.leftStart.x, seg.leftEnd.x, t);
-                rightX = Mathf.Lerp(seg.rightStart.x, seg.rightEnd.x, t);
-                return true;
-            }
-        }
-
-        leftX = rightX = 0;
-        return false;
-    }
-
-    public float GetSpawnY()
-    {
-        return lastTopY - 1.5f;
-    }
-
-    public IEnumerable<TunnelSegment> GetSegments()
-    {
-        return segments;
-    }
+    public float GetScrollSpeed() { return scrollSpeed; }
+    public IEnumerable<TunnelSegment> GetSegments() { return segments; }
 }
