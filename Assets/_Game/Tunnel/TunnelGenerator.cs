@@ -163,4 +163,35 @@ public class TunnelGenerator : MonoBehaviour
             new Vector3(halfUsable, 30, 0)
         );
     }
+
+    public bool GetWallsAtY(float worldY, out float leftX, out float rightX)
+    {
+        foreach (var seg in segments)
+        {
+            float bottom = seg.GetBottomY();
+            float top = seg.GetTopY();
+
+            if (worldY >= bottom && worldY <= top)
+            {
+                float t = Mathf.InverseLerp(bottom, top, worldY);
+
+                leftX = Mathf.Lerp(seg.leftStart.x, seg.leftEnd.x, t);
+                rightX = Mathf.Lerp(seg.rightStart.x, seg.rightEnd.x, t);
+                return true;
+            }
+        }
+
+        leftX = rightX = 0;
+        return false;
+    }
+
+    public float GetSpawnY()
+    {
+        return lastTopY - 1.5f;
+    }
+
+    public IEnumerable<TunnelSegment> GetSegments()
+    {
+        return segments;
+    }
 }

@@ -1273,19 +1273,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rockPrefab: {fileID: 8506743268597302154, guid: 52e5e56feaa00c443b1996245c40aaa2, type: 3}
   debrisPrefab: {fileID: 413212105757274719, guid: 6c796d4e70948224d9299f7c4b0692fc, type: 3}
-  minSpawnInterval: 1
-  maxSpawnInterval: 1.5
-  spawnYOffset: 5
+  minSpawnInterval: 0.5
+  maxSpawnInterval: 1
+  spawnYOffset: 3
+  initialDelay: 1
   tunnelGenerator: {fileID: 1555287552}
-  submarineWidth: 0.8
+  submarineWidth: 0.25
   safetyMargin: 0.1
-  minWidthToSpawn: 1
-  wideWidthThreshold: 1.5
-  maxObstaclesInWideArea: 3
+  minWidthToSpawn: 0.5
   rockChance: 0.8
-  minObstacleScale: 0.5
-  maxObstacleScale: 1
-  initialRockPoolSize: 50
+  minObstacleScale: 0.25
+  maxObstacleScale: 2
+  minDistanceBetweenObstacles: 0.5
+  initialRockPoolSize: 100
   initialDebrisPoolSize: 75
   increaseDifficulty: 1
   difficultyIncreaseRate: 0.95
@@ -1447,7 +1447,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   segmentPrefab: {fileID: 561721746}
   segmentHeight: 1
-  tunnelWidth: 1.5
+  tunnelWidth: 2
   minTunnelWidth: 0.35
   maxTunnelWidth: 3
   scrollSpeed: 2
@@ -2112,13 +2112,33 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 579950049682646955, guid: c795bfae3a287d04e840934880800da3, type: 3}
+      propertyPath: m_Radius
+      value: 0.085
+      objectReference: {fileID: 0}
+    - target: {fileID: 2753297610555393741, guid: c795bfae3a287d04e840934880800da3, type: 3}
+      propertyPath: mainCamera
+      value: 
+      objectReference: {fileID: 1549150839}
+    - target: {fileID: 3237618972858853461, guid: c795bfae3a287d04e840934880800da3, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
     - target: {fileID: 5950853850260379701, guid: c795bfae3a287d04e840934880800da3, type: 3}
       propertyPath: m_Name
       value: Submarine
       objectReference: {fileID: 0}
     - target: {fileID: 9088377565419435233, guid: c795bfae3a287d04e840934880800da3, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 9088377565419435233, guid: c795bfae3a287d04e840934880800da3, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 9088377565419435233, guid: c795bfae3a287d04e840934880800da3, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 9088377565419435233, guid: c795bfae3a287d04e840934880800da3, type: 3}
       propertyPath: m_LocalPosition.y
