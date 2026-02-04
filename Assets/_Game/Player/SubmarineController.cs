@@ -14,9 +14,27 @@ public class SubmarineController : MonoBehaviour
     private Vector2 startTouchPos;
     private float startSubX;
     private bool isTouching;
+    private Rigidbody2D rb;
+    private float targetX;
+    private float desiredX;
+    private float targetXVelocity;
+    private float inputDampTimer = 0f;
+    [SerializeField] private float knockbackInputDampDuration = 0.12f;
+    [SerializeField] private float knockbackInputDampFactor = 0.35f;
+    [SerializeField] private float inputSmoothTime = 0.06f;
 
     void Start()
     {
+        rb = GetComponent<Rigidbody2D>();
+        if (rb == null)
+        {
+            rb = gameObject.AddComponent<Rigidbody2D>();
+        }
+        rb.gravityScale = 0f;
+        rb.constraints = RigidbodyConstraints2D.FreezePositionY | RigidbodyConstraints2D.FreezeRotation;
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+
         // FIXED: Set submarine position on Start, not in first frame
         if (autoCalculateY)
         {
@@ -31,15 +49,34 @@ public class SubmarineController : MonoBehaviour
         
         // Set initial position immediately
         transform.position = new Vector3(0f, fixedY, fixedZ);
+        targetX = transform.position.x;
+        desiredX = targetX;
     }
 
     void Update()
     {
+        if (inputDampTimer > 0f)
+        {
+            inputDampTimer -= Time.deltaTime;
+        }
+
 #if UNITY_EDITOR
         HandleMouse();
 #else
         HandleTouch();
 #endif
+    }
+
+    void FixedUpdate()
+    {
+        if (rb == null) return;
+        float smoothTime = inputSmoothTime;
+        if (inputDampTimer > 0f)
+        {
+            smoothTime = Mathf.Max(0.01f, inputSmoothTime / Mathf.Max(0.1f, knockbackInputDampFactor));
+        }
+        targetX = Mathf.SmoothDamp(targetX, desiredX, ref targetXVelocity, smoothTime);
+        rb.MovePosition(new Vector2(targetX, fixedY));
     }
 
     private void HandleTouch()
@@ -56,6 +93,11 @@ public class SubmarineController : MonoBehaviour
         }
         else if (touch.phase == TouchPhase.Moved && isTouching)
         {
+            if (inputDampTimer > 0f)
+            {
+                startTouchPos = touch.position;
+                startSubX = targetX;
+            }
             float deltaX = (touch.position.x - startTouchPos.x) / Screen.width;
             Move(deltaX);
         }
@@ -75,6 +117,11 @@ public class SubmarineController : MonoBehaviour
         }
         else if (Input.GetMouseButton(0) && isTouching)
         {
+            if (inputDampTimer > 0f)
+            {
+                startTouchPos = Input.mousePosition;
+                startSubX = targetX;
+            }
             float deltaX = (Input.mousePosition.x - startTouchPos.x) / Screen.width;
             Move(deltaX);
         }
@@ -86,14 +133,30 @@ public class SubmarineController : MonoBehaviour
 
     private void Move(float deltaX)
     {
-        float targetX = startSubX + deltaX * moveSpeed;
-        targetX = Mathf.Clamp(targetX, -maxX, maxX);
+        if (inputDampTimer > 0f)
+        {
+            deltaX *= knockbackInputDampFactor;
+        }
 
-        // FIXED: Only change X position, Y and Z are always fixed
-        transform.position = new Vector3(
-            targetX,
-            fixedY,  // Always fixed Y
-            fixedZ   // Always fixed Z
-        );
+        float nextX = startSubX + deltaX * moveSpeed;
+        desiredX = Mathf.Clamp(nextX, -maxX, maxX);
+    }
+
+    public void ApplyKnockback(float pushX)
+    {
+        desiredX = Mathf.Clamp(desiredX + pushX, -maxX, maxX);
+        targetX = desiredX;
+        targetXVelocity = 0f;
+        startSubX = desiredX;
+        inputDampTimer = knockbackInputDampDuration;
+    }
+
+    public void ApplyKnockbackClamped(float pushX, float minX, float maxXClamp)
+    {
+        desiredX = Mathf.Clamp(desiredX + pushX, minX, maxXClamp);
+        targetX = desiredX;
+        targetXVelocity = 0f;
+        startSubX = desiredX;
+        inputDampTimer = knockbackInputDampDuration;
     }
 }

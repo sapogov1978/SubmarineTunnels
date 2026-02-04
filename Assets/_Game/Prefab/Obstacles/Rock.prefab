@@ -198,7 +198,7 @@ MonoBehaviour:
   destroyOnHit: 1
   hitEffectPrefab: {fileID: 0}
   hitSound: {fileID: 0}
-  showDebugLogs: 0
+  showDebugLogs: 1
   scrollSpeed: 2
 --- !u!114 &240214704010553153
 MonoBehaviour:

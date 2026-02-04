@@ -76,6 +76,7 @@
     <Compile Include="Assets\_Game\UI\OxygenUI.cs" />
     <Compile Include="Assets\_Game\Obstacles\Obstacle.cs" />
     <Compile Include="Assets\_Game\Oxygen\OxygenManager.cs" />
+    <Compile Include="Assets\_Game\Player\CollisionDetector.cs" />
     <Compile Include="Assets\_Game\Tunnel\TunnelGenerator.cs" />
     <Compile Include="Assets\_Game\UI\GameOverUI.cs" />
     <Compile Include="Assets\_Game\Player\SubmarineController.cs" />

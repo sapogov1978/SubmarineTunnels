@@ -110,11 +110,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 620d05c9e0db13740beb58a07c690729, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  damageAmount: 20
-  destroyOnHit: 1
+  damageAmount: 15
+  destroyOnHit: 0
   hitEffectPrefab: {fileID: 0}
   hitSound: {fileID: 0}
-  showDebugLogs: 0
+  showDebugLogs: 1
   scrollSpeed: 2
   driftSideways: 1
   driftSpeed: 0.5

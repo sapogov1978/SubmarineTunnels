@@ -11,7 +11,10 @@ public class ObstacleSpawner : MonoBehaviour
     [SerializeField] private Debris debrisPrefab;
 
     [Header("Spawn Chance")]
-    [SerializeField] [Range(0f, 1f)] private float spawnChance = 0.6f;
+    [SerializeField] [Range(0f, 1f)] private float spawnChance = 0.3f;
+
+    [Header("Spawn Spacing")]
+    [SerializeField] private float minObstacleSpacingY = 3f;
 
     [Header("Sizes (радиусы)")]
     [SerializeField] private float submarineRadius = 0.125f;
@@ -21,8 +24,8 @@ public class ObstacleSpawner : MonoBehaviour
     [SerializeField] private float safetyMargin = 0.1f;
 
     [Header("Pooling")]
-    [SerializeField] private int initialRockPoolSize = 20;
-    [SerializeField] private int initialDebrisPoolSize = 30;
+    [SerializeField] private int initialRockPoolSize = 10;
+    [SerializeField] private int initialDebrisPoolSize = 15;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = false;
@@ -30,6 +33,7 @@ public class ObstacleSpawner : MonoBehaviour
     private ObjectPool<Rock> rockPool;
     private ObjectPool<Debris> debrisPool;
     private float scrollSpeed = 2f;
+    private float lastObstacleY = float.NegativeInfinity;
 
     void Start()
     {
@@ -47,9 +51,13 @@ public class ObstacleSpawner : MonoBehaviour
         scrollSpeed = speed;
     }
 
-    public void SpawnObstacleForSegment(float segmentTopY, float segmentOffset, float segmentWidth)
+    public bool SpawnObstacleForSegment(float segmentTopY, float segmentOffset, float segmentWidth, float chanceMultiplier = 1f, float segmentProgressY = float.NaN)
     {
-        if (Random.value > spawnChance) return;
+        float spacingY = float.IsNaN(segmentProgressY) ? segmentTopY : segmentProgressY;
+        if (Mathf.Abs(spacingY - lastObstacleY) < minObstacleSpacingY) return false;
+
+        float finalChance = Mathf.Clamp01(spawnChance * Mathf.Clamp01(chanceMultiplier));
+        if (Random.value > finalChance) return false;
 
         bool spawnRock = Random.value > 0.5f;
         float maxRadius = spawnRock ? maxRockRadius : maxDebrisRadius;
@@ -94,7 +102,7 @@ public class ObstacleSpawner : MonoBehaviour
         {
             if (showDebugLogs)
                 Debug.Log($"[ObstacleSpawner] Too narrow even with min size: {segmentWidth:F2}");
-            return;
+            return false;
         }
 
         // Выбираем сторону
@@ -140,6 +148,9 @@ public class ObstacleSpawner : MonoBehaviour
             Debug.Log($"  Max radius: left={maxLeftRadius:F2}, right={maxRightRadius:F2}");
             Debug.Log($"  Final radius: {obstacleRadius:F2} (max: {maxRadius:F2}, scale: {(obstacleRadius/maxRadius):F2})");
         }
+
+        lastObstacleY = spacingY;
+        return true;
     }
 
     public void ReturnToPool(Obstacle obstacle)
@@ -151,3 +162,5 @@ public class ObstacleSpawner : MonoBehaviour
         else if (obstacle is Debris debris) debrisPool.Return(debris);
     }
 }
+
+

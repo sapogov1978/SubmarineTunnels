@@ -25,6 +25,10 @@ public class CameraFollow : MonoBehaviour
     private void LateUpdate()
     {
         if (!target) return;
+        
+        // ВАЖНО: Не следим за батискафом если игра закончилась
+        if (GameManager.Instance != null && GameManager.Instance.IsGameOver())
+            return;
 
         // FIXED: Only follow X position, Y and Z are fixed
         Vector3 targetPos = new Vector3(

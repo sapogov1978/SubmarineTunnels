@@ -331,6 +331,11 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 181748756}
   m_CullTransparentMesh: 1
+--- !u!1 &279693182 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5950853850260379701, guid: c795bfae3a287d04e840934880800da3, type: 3}
+  m_PrefabInstance: {fileID: 4571084329896285566}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &469731249
 GameObject:
   m_ObjectHideFlags: 0
@@ -734,7 +739,7 @@ MonoBehaviour:
   currentOxygen: 100
   depletionRate: 2
   depletionInterval: 1
-  showDebugLogs: 1
+  showDebugLogs: 0
 --- !u!4 &619851182
 Transform:
   m_ObjectHideFlags: 0
@@ -1273,15 +1278,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rockPrefab: {fileID: 8506743268597302154, guid: 52e5e56feaa00c443b1996245c40aaa2, type: 3}
   debrisPrefab: {fileID: 413212105757274719, guid: 6c796d4e70948224d9299f7c4b0692fc, type: 3}
-  spawnChance: 0.6
+  spawnChance: 0.8
+  minObstacleSpacingY: 0
   submarineRadius: 0.125
   maxRockRadius: 0.15
   maxDebrisRadius: 0.12
   minObstacleRadius: 0.08
   safetyMargin: 0.1
-  initialRockPoolSize: 100
-  initialDebrisPoolSize: 75
-  showDebugLogs: 1
+  initialRockPoolSize: 60
+  initialDebrisPoolSize: 20
+  showDebugLogs: 0
 --- !u!4 &1436356514
 Transform:
   m_ObjectHideFlags: 0
@@ -1443,6 +1449,11 @@ MonoBehaviour:
   scrollSpeed: 2
   mainCamera: {fileID: 1549150839}
   obstacleSpawner: {fileID: 1436356513}
+  safeStartSegments: 10
+  obstacleCooldownSegments: 1
+  narrowWidthChanceMultiplier: 0.75
+  curveChanceMultiplier: 0.8
+  curvePenaltyOffset: 0.95
 --- !u!4 &1555287553
 Transform:
   m_ObjectHideFlags: 0
@@ -1463,6 +1474,30 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 9088377565419435233, guid: c795bfae3a287d04e840934880800da3, type: 3}
   m_PrefabInstance: {fileID: 4571084329896285566}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1555556531
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 279693182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2db4f2d32a2845458769de07c07f185, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  obstacleDamage: 25
+  wallDamage: 25
+  damageFlashDuration: 0.2
+  damageFlashColor: {r: 1, g: 0.3, b: 0.3, a: 1}
+  shakeDuration: 0.2
+  shakeMagnitude: 0.1
+  collisionSound: {fileID: 0}
+  wallKnockbackForce: 2
+  wallKnockbackDistance: 0.4
+  narrowKnockbackScale: 0.4
+  narrowWidthThreshold: 1.2
+  showDebugLogs: 0
 --- !u!1 &1570947577
 GameObject:
   m_ObjectHideFlags: 0
@@ -2114,6 +2149,18 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+    - target: {fileID: 5845576082070830329, guid: c795bfae3a287d04e840934880800da3, type: 3}
+      propertyPath: m_BodyType
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5845576082070830329, guid: c795bfae3a287d04e840934880800da3, type: 3}
+      propertyPath: m_Constraints
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 5845576082070830329, guid: c795bfae3a287d04e840934880800da3, type: 3}
+      propertyPath: m_GravityScale
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5950853850260379701, guid: c795bfae3a287d04e840934880800da3, type: 3}
       propertyPath: m_Name
       value: Submarine
@@ -2169,7 +2216,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5950853850260379701, guid: c795bfae3a287d04e840934880800da3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1555556531}
   m_SourcePrefab: {fileID: 100100000, guid: c795bfae3a287d04e840934880800da3, type: 3}
 --- !u!1001 &6382943040652442899
 PrefabInstance:
@@ -2220,6 +2270,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2169128095881133503, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: m_CastShadows
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2169128095881133503, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
       propertyPath: m_Parameters.colorGradient.key1.b
       value: 0
       objectReference: {fileID: 0}
@@ -2229,11 +2283,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
       propertyPath: resolution
-      value: 100
+      value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
       propertyPath: scrollSpeed
       value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4330020006176158501, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: m_TagString
+      value: TunnelWall
+      objectReference: {fileID: 0}
+    - target: {fileID: 5389119521229248984, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: m_CastShadows
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5389119521229248984, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
       propertyPath: m_Parameters.colorGradient.key0.b
@@ -2242,6 +2304,10 @@ PrefabInstance:
     - target: {fileID: 5389119521229248984, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
       propertyPath: m_Parameters.colorGradient.key0.g
       value: 0.6509804
+      objectReference: {fileID: 0}
+    - target: {fileID: 7304089865508106351, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: m_TagString
+      value: TunnelWall
       objectReference: {fileID: 0}
     - target: {fileID: 8987207706638141316, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
       propertyPath: m_Name

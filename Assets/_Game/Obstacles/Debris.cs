@@ -3,6 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Обломки - препятствие с дрейфом
 /// УПРОЩЕНО: Дрейф с фиксированными границами (ширина экрана)
+/// ВАЖНО: Использует Object Pooling, поэтому вернули в пул вместо Destroy
 /// </summary>
 public class Debris : Obstacle
 {
@@ -47,10 +48,39 @@ public class Debris : Obstacle
 
     protected override void OnHit(GameObject player)
     {
-        base.OnHit(player);
-
+        // НЕ вызываем base.OnHit() - Debris использует pooling!
+        // base.OnHit() содержит Destroy(gameObject), что нарушает pooling
+        
         if (showDebugLogs)
-            Debug.Log("[Debris] Small hit");
+            Debug.Log("[Debris] Hit! Returning to pool");
+
+        // Визуальный эффект (из Obstacle)
+        if (hitEffectPrefab != null)
+        {
+            Instantiate(hitEffectPrefab, transform.position, Quaternion.identity);
+        }
+
+        // Звуковой эффект (из Obstacle)
+        if (hitSound != null && AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX(hitSound);
+        }
+
+        // ГЛАВНОЕ: Возвращаем в пул вместо Destroy
+        ObstacleSpawner spawner = FindObjectOfType<ObstacleSpawner>();
+        if (spawner != null)
+        {
+            spawner.ReturnToPool(this);
+            if (showDebugLogs)
+                Debug.Log("[Debris] Returned to pool");
+        }
+        else
+        {
+            // Fallback: просто деактивируем
+            gameObject.SetActive(false);
+            if (showDebugLogs)
+                Debug.Log("[Debris] No spawner found, deactivated");
+        }
     }
 
     public override void ResetObstacle()

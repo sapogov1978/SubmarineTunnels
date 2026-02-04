@@ -6,16 +6,17 @@ using TMPro;
 /// <summary>
 /// Управляет экраном Game Over
 /// Показывает финальную статистику и кнопки управления
+/// День 6 FIX: Останавливает камеру shake перед паузой
 /// </summary>
 public class GameOverUI : MonoBehaviour
 {
     [Header("UI References")]
-    [SerializeField] private GameObject gameOverPanel; // главная панель
-    [SerializeField] private TextMeshProUGUI titleText; // "GAME OVER"
-    [SerializeField] private TextMeshProUGUI finalDistanceText; // "Distance: 1523m"
-    [SerializeField] private TextMeshProUGUI bestDistanceText; // "Best: 2341m"
+    [SerializeField] private GameObject gameOverPanel;
+    [SerializeField] private TextMeshProUGUI titleText;
+    [SerializeField] private TextMeshProUGUI finalDistanceText;
+    [SerializeField] private TextMeshProUGUI bestDistanceText;
     [SerializeField] private Button restartButton;
-    [SerializeField] private Button mainMenuButton; // опционально
+    [SerializeField] private Button mainMenuButton;
 
     [Header("Animation")]
     [SerializeField] private float fadeInDuration = 0.5f;
@@ -27,17 +28,16 @@ public class GameOverUI : MonoBehaviour
 
     private CanvasGroup canvasGroup;
     private bool isShowing;
+    private Camera mainCamera;
 
     void Awake()
     {
-        // Получаем или добавляем CanvasGroup для fade эффектов
         canvasGroup = gameOverPanel.GetComponent<CanvasGroup>();
         if (canvasGroup == null && animateOnShow)
         {
             canvasGroup = gameOverPanel.AddComponent<CanvasGroup>();
         }
 
-        // Настраиваем кнопки
         if (restartButton != null)
         {
             restartButton.onClick.AddListener(OnRestartClicked);
@@ -47,14 +47,14 @@ public class GameOverUI : MonoBehaviour
         {
             mainMenuButton.onClick.AddListener(OnMainMenuClicked);
         }
+
+        mainCamera = Camera.main;
     }
 
     void Start()
     {
-        // Скрываем панель при старте
         Hide();
 
-        // Подписываемся на событие смерти
         if (OxygenManager.Instance != null)
         {
             OxygenManager.Instance.OnOxygenDepleted += OnPlayerDied;
@@ -67,13 +67,11 @@ public class GameOverUI : MonoBehaviour
 
     void OnDestroy()
     {
-        // Отписываемся от событий
         if (OxygenManager.Instance != null)
         {
             OxygenManager.Instance.OnOxygenDepleted -= OnPlayerDied;
         }
 
-        // Очищаем слушатели кнопок
         if (restartButton != null)
         {
             restartButton.onClick.RemoveListener(OnRestartClicked);
@@ -90,15 +88,19 @@ public class GameOverUI : MonoBehaviour
     /// </summary>
     private void OnPlayerDied()
     {
-        // Получаем финальную статистику (пока заглушка, будет реализовано в День 12)
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.EndGame();
+        }
+
         float finalDistance = GetFinalDistance();
         float bestDistance = GetBestDistance();
-
         Show(finalDistance, bestDistance);
     }
 
     /// <summary>
-    /// Показывает экран Game Over с анимацией
+    /// Показывает экран Game Over
+    /// ДЕНЬ 6 FIX: Останавливает camera shake перед паузой
     /// </summary>
     public void Show(float distance = 0f, float bestDistance = 0f)
     {
@@ -115,7 +117,6 @@ public class GameOverUI : MonoBehaviour
 
         if (bestDistanceText != null)
         {
-            // Проверяем новый рекорд
             bool isNewRecord = distance > bestDistance;
             
             if (isNewRecord && distance > 0)
@@ -135,7 +136,18 @@ public class GameOverUI : MonoBehaviour
             AudioManager.Instance.PlaySFX(gameOverSound);
         }
 
-        // Анимация появления
+        // ════════════════════════════════════════════════════════════
+        // ДЕНЬ 6 FIX: КРИТИЧНО!
+        // Останавливаем camera shake ПЕРЕД паузой
+        // Иначе камера будет дрожать как судорога
+        // ════════════════════════════════════════════════════════════
+        if (mainCamera != null)
+        {
+            // Прерываем все корутины камеры (включая CameraShake)
+            StopAllCameraCoroutines();
+        }
+
+        // Анимация появления (используем unscaledDeltaTime чтобы работало при pause)
         if (animateOnShow && canvasGroup != null)
         {
             StartCoroutine(FadeInRoutine());
@@ -145,10 +157,33 @@ public class GameOverUI : MonoBehaviour
             canvasGroup.alpha = 1f;
         }
 
-        // Останавливаем игру
+        // Теперь можно ставить паузу - камера уже стабильна
         Time.timeScale = 0f;
 
         Debug.Log($"[GameOverUI] Game Over! Distance: {distance:F0}m, Best: {bestDistance:F0}m");
+    }
+
+    /// <summary>
+    /// Останавливает все корутины связанные с камерой
+    /// Это требуется чтобы остановить camera shake перед паузой
+    /// </summary>
+    private void StopAllCameraCoroutines()
+    {
+        if (mainCamera == null) return;
+        
+        // Находим все компоненты на камере
+        MonoBehaviour[] behaviours = mainCamera.GetComponents<MonoBehaviour>();
+        foreach (MonoBehaviour behaviour in behaviours)
+        {
+            behaviour.StopAllCoroutines();
+        }
+        
+        // Возвращаем камеру в исходное положение
+        mainCamera.transform.position = new Vector3(
+            mainCamera.transform.position.x,
+            0f, // Y = 0 (так как камера привязана к батискафу)
+            -10f // Z = -10 (стандартное Z для 2D)
+        );
     }
 
     /// <summary>
@@ -175,7 +210,8 @@ public class GameOverUI : MonoBehaviour
 
         while (elapsed < fadeInDuration)
         {
-            elapsed += Time.unscaledDeltaTime; // используем unscaled для работы при Time.timeScale = 0
+            // ВАЖНО: используем unscaledDeltaTime чтобы работало при Time.timeScale = 0
+            elapsed += Time.unscaledDeltaTime;
             float t = fadeInCurve.Evaluate(elapsed / fadeInDuration);
             canvasGroup.alpha = t;
             yield return null;
@@ -191,7 +227,7 @@ public class GameOverUI : MonoBehaviour
     {
         Debug.Log("[GameOverUI] Restart clicked");
 
-        // Восстанавливаем время
+        // Восстанавливаем время перед рестартом
         Time.timeScale = 1f;
 
         // Перезагружаем сцену
@@ -199,7 +235,7 @@ public class GameOverUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Обработчик кнопки Main Menu (опционально)
+    /// Обработчик кнопки Main Menu
     /// </summary>
     private void OnMainMenuClicked()
     {
@@ -208,7 +244,6 @@ public class GameOverUI : MonoBehaviour
         // Восстанавливаем время
         Time.timeScale = 1f;
 
-        // Переход в главное меню (если есть отдельная сцена)
         // SceneManager.LoadScene("MainMenu");
         
         // Пока просто рестарт
@@ -216,12 +251,11 @@ public class GameOverUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Получить финальную дистанцию (заглушка для Дня 12)
+    /// Получить финальную дистанцию
     /// </summary>
     private float GetFinalDistance()
     {
         // TODO День 12: Интегрировать с ProgressUI
-        // Пока возвращаем рандомное значение для демонстрации
         return Random.Range(100f, 2000f);
     }
 
@@ -247,7 +281,6 @@ public class GameOverUI : MonoBehaviour
         }
     }
 
-    // DEBUG методы для тестирования
     #if UNITY_EDITOR
     [ContextMenu("Test: Show Game Over")]
     private void TestShowGameOver()

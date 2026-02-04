@@ -20,6 +20,11 @@ public class TunnelGenerator : MonoBehaviour
     
     [Header("Obstacle Integration")]
     [SerializeField] private ObstacleSpawner obstacleSpawner;
+    [SerializeField] private int safeStartSegments = 10;
+    [SerializeField] private int obstacleCooldownSegments = 1;
+    [SerializeField] private float narrowWidthChanceMultiplier = 0.3f;
+    [SerializeField] private float curveChanceMultiplier = 0.4f;
+    [SerializeField] private float curvePenaltyOffset = 0.6f;
 
     private Queue<TunnelSegment> segments = new Queue<TunnelSegment>();
     private float lastOffset = 0f;
@@ -34,6 +39,10 @@ public class TunnelGenerator : MonoBehaviour
     
     private float screenHalfWidth;
     private float uiMargin = 0.5f;
+    private TunnelSegment lastSpawnedSegment;
+    private int spawnedSegments = 0;
+    private int segmentsSinceObstacle = 0;
+    private float spawnedDistanceY = 0f;
 
     void Start()
     {
@@ -65,21 +74,28 @@ public class TunnelGenerator : MonoBehaviour
 
     void Update()
     {
+        // НЕ обновляем туннель если игра закончилась
+        if (GameManager.Instance != null && GameManager.Instance.IsGameOver())
+            return;
+
         foreach (var seg in segments)
         {
             seg.transform.Translate(Vector3.down * scrollSpeed * Time.deltaTime);
         }
+        lastTopY -= scrollSpeed * Time.deltaTime;
 
         if (segments.Count > 0)
         {
-            var lastSeg = segments.Peek();
-            if (lastSeg.GetTopY() < mainCamera.orthographicSize)
+            var lastSeg = lastSpawnedSegment;
+            // Спавним сегмент когда верхний край последнего сегмента выходит за верхнюю границу видимой области
+            float topScreenBoundary = mainCamera.transform.position.y + mainCamera.orthographicSize;
+            if (lastSeg != null && lastSeg.GetTopY() < topScreenBoundary)
             {
                 SpawnSegment();
             }
         }
 
-        float destroyY = -mainCamera.orthographicSize - (segmentHeight * 2);
+        float destroyY = mainCamera.transform.position.y - mainCamera.orthographicSize - (segmentHeight * 3);
         while (segments.Count > 0 && segments.Peek().GetBottomY() < destroyY)
         {
             Destroy(segments.Dequeue().gameObject);
@@ -90,7 +106,10 @@ public class TunnelGenerator : MonoBehaviour
     {
         TunnelSegment seg = Instantiate(segmentPrefab, transform);
 
-        float posY = lastTopY + segmentHeight - 0.1f;
+        float baseY = lastSpawnedSegment != null
+            ? lastSpawnedSegment.transform.position.y
+            : lastTopY;
+        float posY = baseY + segmentHeight - 0.2f;
         seg.transform.position = new Vector3(0, posY, 0);
 
         narrowingCounter++;
@@ -131,16 +150,35 @@ public class TunnelGenerator : MonoBehaviour
         seg.Build();
 
         segments.Enqueue(seg);
+        lastSpawnedSegment = seg;
+        spawnedSegments++;
+        segmentsSinceObstacle++;
+        spawnedDistanceY += segmentHeight;
 
         // КЛЮЧЕВОЙ МОМЕНТ: Спавним препятствие СРАЗУ с параметрами этого сегмента
-        if (obstacleSpawner != null)
+        if (obstacleSpawner != null && spawnedSegments > safeStartSegments && segmentsSinceObstacle > obstacleCooldownSegments)
         {
+            float widthT = Mathf.InverseLerp(minTunnelWidth, maxTunnelWidth, currentWidth);
+            float widthChance = Mathf.Lerp(narrowWidthChanceMultiplier, 1f, widthT);
+
+            float curveDelta = Mathf.Abs(newOffset - lastOffset);
+            float curveT = Mathf.InverseLerp(0f, curvePenaltyOffset, curveDelta);
+            float curveChance = Mathf.Lerp(1f, curveChanceMultiplier, curveT);
+
+            float chanceMultiplier = widthChance * curveChance;
+
             // Передаём КОНЕЧНЫЕ параметры сегмента (его верх)
-            obstacleSpawner.SpawnObstacleForSegment(
+            bool spawned = obstacleSpawner.SpawnObstacleForSegment(
                 posY + segmentHeight,  // Y верха сегмента
                 newOffset,             // Offset КОНЦА сегмента
-                currentWidth           // Ширина КОНЦА сегмента
+                currentWidth,          // Ширина КОНЦА сегмента
+                chanceMultiplier,
+                spawnedDistanceY
             );
+            if (spawned)
+            {
+                segmentsSinceObstacle = 0;
+            }
         }
 
         prevWidth = currentWidth;
@@ -151,3 +189,6 @@ public class TunnelGenerator : MonoBehaviour
     public float GetScrollSpeed() { return scrollSpeed; }
     public IEnumerable<TunnelSegment> GetSegments() { return segments; }
 }
+
+
+
