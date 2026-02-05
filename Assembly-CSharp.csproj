@@ -69,6 +69,7 @@
     <Compile Include="Assets\_Game\Obstacles\ObstacleSpawner.cs" />
     <Compile Include="Assets\_Game\Obstacles\ObstacleAutoDestroy.cs" />
     <Compile Include="Assets\_Game\Tunnel\TunnelSegment.cs" />
+    <Compile Include="Assets\_Game\Lights\AdBoostPickup.cs" />
     <Compile Include="Assets\_Game\Core\CameraFollow.cs" />
     <Compile Include="Assets\_Game\Core\GameManager.cs" />
     <Compile Include="Assets\_Game\Utils\ObjectPool.cs" />
@@ -77,8 +78,11 @@
     <Compile Include="Assets\_Game\Obstacles\Obstacle.cs" />
     <Compile Include="Assets\_Game\Oxygen\OxygenManager.cs" />
     <Compile Include="Assets\_Game\Player\CollisionDetector.cs" />
+    <Compile Include="Assets\_Game\Lights\LightBoostManager.cs" />
     <Compile Include="Assets\_Game\Tunnel\TunnelGenerator.cs" />
+    <Compile Include="Assets\_Game\Oxygen\OxygenPickupAutoDestroy.cs" />
     <Compile Include="Assets\_Game\UI\GameOverUI.cs" />
+    <Compile Include="Assets\_Game\Oxygen\OxygenPickup.cs" />
     <Compile Include="Assets\_Game\Player\SubmarineController.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -1199,6 +1203,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="MCPForUnity.Runtime.csproj" />
+    <ProjectReference Include="MCPForUnity.Editor.csproj" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
   <ItemGroup>

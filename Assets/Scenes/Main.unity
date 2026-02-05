@@ -1278,8 +1278,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rockPrefab: {fileID: 8506743268597302154, guid: 52e5e56feaa00c443b1996245c40aaa2, type: 3}
   debrisPrefab: {fileID: 413212105757274719, guid: 6c796d4e70948224d9299f7c4b0692fc, type: 3}
+  oxygenPickupPrefab: {fileID: 3389034415734453921, guid: ba6434feb23568a489161f2fe6f9e71d, type: 3}
   spawnChance: 0.8
   minObstacleSpacingY: 0
+  oxygenSpawnInterval: 12
+  oxygenAmount: 25
+  spawnOxygenEnabled: 1
   submarineRadius: 0.125
   maxRockRadius: 0.15
   maxDebrisRadius: 0.12
@@ -1287,6 +1291,7 @@ MonoBehaviour:
   safetyMargin: 0.1
   initialRockPoolSize: 60
   initialDebrisPoolSize: 20
+  initialOxygenPoolSize: 5
   showDebugLogs: 0
 --- !u!4 &1436356514
 Transform:

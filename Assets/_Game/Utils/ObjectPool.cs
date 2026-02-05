@@ -4,6 +4,7 @@ using UnityEngine;
 /// <summary>
 /// Generic Object Pool для переиспользования объектов
 /// Уменьшает нагрузку на GC и улучшает производительность
+/// День 7: Добавлена поддержка OxygenPickup
 /// </summary>
 /// <typeparam name="T">Тип компонента (должен быть MonoBehaviour)</typeparam>
 public class ObjectPool<T> where T : MonoBehaviour
@@ -76,6 +77,11 @@ public class ObjectPool<T> where T : MonoBehaviour
         if (obj is Obstacle obstacle)
         {
             obstacle.ResetObstacle();
+        }
+        // День 7: Сброс состояния если объект - OxygenPickup
+        else if (obj is OxygenPickup pickup)
+        {
+            pickup.ResetPickup();
         }
         
         pool.Enqueue(obj);
