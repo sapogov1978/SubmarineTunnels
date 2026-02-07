@@ -64,10 +64,12 @@ public abstract class Obstacle : MonoBehaviour
 
     /// <summary>
     /// Сброс состояния для переиспользования (Object Pooling)
+    /// ДЕНЬ 8 FIX V5: Добавлен сброс rotation (для отражения обвалов)
     /// </summary>
     public virtual void ResetObstacle()
     {
         hasBeenHit = false;
+        transform.rotation = Quaternion.identity;  // Сбрасываем поворот
     }
 
     public float GetDamage()

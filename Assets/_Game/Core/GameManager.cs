@@ -15,6 +15,11 @@ public class GameManager : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private int targetFrameRate = 60;
     [SerializeField] private bool preventSleep = true;
+    [SerializeField] private float scrollSpeed = 2f;
+
+    [Header("Runtime Metrics")]
+    [SerializeField] private Camera mainCamera;
+    [SerializeField] private GameObject submarinePrefab;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
@@ -38,6 +43,10 @@ public class GameManager : MonoBehaviour
 
         // Применяем настройки
         ApplySettings();
+
+        if (mainCamera == null)
+            mainCamera = Camera.main;
+        RuntimeGameplayMetrics.Initialize(mainCamera, submarinePrefab, scrollSpeed);
     }
 
     void Start()

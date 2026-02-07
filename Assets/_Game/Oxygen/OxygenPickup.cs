@@ -11,7 +11,7 @@ public class OxygenPickup : MonoBehaviour
     [SerializeField] private float oxygenAmount = 25f; // Сколько % кислорода восстанавливает
 
     [Header("Movement")]
-    [SerializeField] private float scrollSpeed = 2f;
+    private float scrollSpeed = 2f;
     [SerializeField] private bool rotateWhileMoving = true;
     [SerializeField] private float rotationSpeed = 45f; // градусов в секунду
 
@@ -35,6 +35,9 @@ public class OxygenPickup : MonoBehaviour
 
     void Update()
     {
+        if (RuntimeGameplayMetrics.ScrollSpeed > 0f)
+            scrollSpeed = RuntimeGameplayMetrics.ScrollSpeed;
+
         // Движение вниз синхронно с туннелем
         transform.Translate(Vector3.down * scrollSpeed * Time.deltaTime, Space.World);
 

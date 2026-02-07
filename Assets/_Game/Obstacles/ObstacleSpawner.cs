@@ -5,6 +5,7 @@ using UnityEngine;
 /// В узких туннелях препятствия становятся меньше
 /// День 7: Добавлен спавн кислородных баллонов
 /// День 8: Добавлен спавн рекламных шариков
+/// ДЕНЬ 8 FIX: Автокалибровка размеров после добавления текстур
 /// </summary>
 public class ObstacleSpawner : MonoBehaviour
 {
@@ -28,15 +29,24 @@ public class ObstacleSpawner : MonoBehaviour
 
     [Header("Ad Boost Pickup Settings")]
     [SerializeField] private float adBoostSpawnInterval = 35f; // секунды между спавном (реже чем кислород)
-    [SerializeField] private float adBoostPickupScale = 0.5f; // размер шарика
+    [SerializeField] private float adBoostPickupScale = 0.4f; // размер шарика
     [SerializeField] private bool spawnAdBoostEnabled = true;
 
-    [Header("Sizes (радиусы)")]
-    [SerializeField] private float submarineRadius = 0.125f;
-    [SerializeField] private float maxRockRadius = 0.15f;      // Максимальный размер
-    [SerializeField] private float maxDebrisRadius = 0.12f;    // Максимальный размер
-    [SerializeField] private float minObstacleRadius = 0.08f;  // Минимальный размер
-    [SerializeField] private float safetyMargin = 0.1f;
+    [Header("References")]
+
+    [Header("Sizes (половина ширины)")]
+    [SerializeField] private float maxRockHalfWidth = 0.15f;      // Авто-калибруется из prefab
+    [SerializeField] private float maxDebrisHalfWidth = 0.12f;    // Авто-калибруется из prefab
+    [SerializeField] private float minObstacleHalfWidth = 0.08f;  // Минимальная половина ширины
+    [SerializeField] private float minObstacleWidthFractionOfTunnel = 0.2f; // Min obstacle width as fraction of free space
+    [SerializeField] [Range(0.1f, 1f)] private float rockMinFractionOfMax = 0.8f; // Rock must be >= this fraction of max allowed size
+    [SerializeField] private float passageWidthMultiplier = 1.5f; // minPassage = SafeMargin (from RuntimeGameplayMetrics)
+    
+    [Header("Auto-Calibration")]
+    [SerializeField] private bool autoCalibrateSizes = true;
+    [Tooltip("Автоматически определяет размеры из коллайдеров префабов. Отключите для ручной настройки.")]
+    [SerializeField] private bool showCalibrationInfo = true;  // Показывать информацию о калибровке
+    
 
     [Header("Pooling")]
     [SerializeField] private int initialRockPoolSize = 10;
@@ -54,9 +64,44 @@ public class ObstacleSpawner : MonoBehaviour
     private float oxygenSpawnTimer = 0f;
     private float adBoostSpawnTimer = 0f;
 
+    // Day 9: halves for asymmetric pivots/colliders
+    private float actualRockLeftHalf;
+    private float actualRockRightHalf;
+    private float actualDebrisLeftHalf;
+    private float actualDebrisRightHalf;
+    
+    // ДЕНЬ 8 V6: Вычисляемые размеры (не hardcoded!)
+    private float actualRockHalfWidth;    // Получаем из префаба Rock
+    private float actualDebrisHalfWidth;  // Получаем из префаба Debris
+
     void Start()
     {
+        // ВАЖНО: Калибруем размеры ДО инициализации пулов
+        if (autoCalibrateSizes)
+        {
+            CalibrateObstacleSizes();
+        }
+        else
+        {
+            // Используем ручные настройки
+            actualRockHalfWidth = maxRockHalfWidth;
+            actualDebrisHalfWidth = maxDebrisHalfWidth;
+            actualRockLeftHalf = actualRockHalfWidth;
+            actualRockRightHalf = actualRockHalfWidth;
+            actualDebrisLeftHalf = actualDebrisHalfWidth;
+            actualDebrisRightHalf = actualDebrisHalfWidth;
+
+            if (showCalibrationInfo)
+            {
+                Debug.Log("[ObstacleSpawner] Manual sizes: Rock=" + actualRockHalfWidth + ", Debris=" + actualDebrisHalfWidth);
+            }
+        }
+        
+        ApplyRuntimeMetrics();
+        ApplyPickupScalesFromMetrics();
+
         InitializePools();
+        
         // Начальная задержка перед первым кислородом
         oxygenSpawnTimer = oxygenSpawnInterval / 2f;
         // Начальная задержка перед первым рекламным шариком
@@ -77,8 +122,262 @@ public class ObstacleSpawner : MonoBehaviour
             adBoostSpawnTimer += Time.deltaTime;
         }
     }
+    
+    /// <summary>
+    /// ДЕНЬ 8 FIX V5: Калибровка ШИРИНЫ вместо радиуса
+    /// + автокалибровка батискафа!
+    /// </summary>
+    private void CalibrateObstacleSizes()
+    {
+        Debug.Log("=== [ObstacleSpawner] AUTO-CALIBRATION START (V5: Width-based) ===");
+        
+        // НОВОЕ: Калибруем батискаф!
+        // Prefer scene instance (its scale is the real one); fallback to prefab if not found.
+        // Калибруем Rock
+        if (rockPrefab != null)
+        {
+            actualRockHalfWidth = GetPrefabBiggestHalfWidth(rockPrefab.gameObject, "Rock", out actualRockLeftHalf, out actualRockRightHalf);
+            
+            if (actualRockHalfWidth <= 0f)
+            {
+                Debug.LogWarning("[ObstacleSpawner] Rock calibration failed! Using manual fallback: " + maxRockHalfWidth);
+                actualRockHalfWidth = maxRockHalfWidth;
+                actualRockLeftHalf = actualRockHalfWidth;
+                actualRockRightHalf = actualRockHalfWidth;
+            }
+        }
+        else
+        {
+            Debug.LogError("[ObstacleSpawner] Rock prefab is NULL!");
+            actualRockHalfWidth = maxRockHalfWidth;
+            actualRockLeftHalf = actualRockHalfWidth;
+            actualRockRightHalf = actualRockHalfWidth;
+        }
+        
+        // Калибруем Debris
+        if (debrisPrefab != null)
+        {
+            actualDebrisHalfWidth = GetPrefabHalfWidthSymmetric(debrisPrefab.gameObject, "Debris");
+            actualDebrisLeftHalf = actualDebrisHalfWidth;
+            actualDebrisRightHalf = actualDebrisHalfWidth;
+            
+            if (actualDebrisHalfWidth <= 0f)
+            {
+                Debug.LogWarning("[ObstacleSpawner] Debris calibration failed! Using manual fallback: " + maxDebrisHalfWidth);
+                actualDebrisHalfWidth = maxDebrisHalfWidth;
+                actualDebrisLeftHalf = actualDebrisHalfWidth;
+                actualDebrisRightHalf = actualDebrisHalfWidth;
+            }
+        }
+        else
+        {
+            Debug.LogError("[ObstacleSpawner] Debris prefab is NULL!");
+            actualDebrisHalfWidth = maxDebrisHalfWidth;
+            actualDebrisLeftHalf = actualDebrisHalfWidth;
+            actualDebrisRightHalf = actualDebrisHalfWidth;
+        }
+        
+        if (showCalibrationInfo)
+        {
+            Debug.Log("[ObstacleSpawner] ✓ Calibration complete (WIDTH-BASED):");
+            Debug.Log("  - Rock halfWidth: " + actualRockHalfWidth + " (manual was: " + maxRockHalfWidth + ")");
+            Debug.Log("  - Debris halfWidth: " + actualDebrisHalfWidth + " (manual was: " + maxDebrisHalfWidth + ")");
+            
+            if (Mathf.Abs(actualRockHalfWidth - maxRockHalfWidth) > 0.01f)
+            {
+                Debug.LogWarning("[ObstacleSpawner] ⚠️ Rock size mismatch! Consider updating maxRockHalfWidth to " + actualRockHalfWidth);
+            }
+            
+            if (Mathf.Abs(actualDebrisHalfWidth - maxDebrisHalfWidth) > 0.01f)
+            {
+                Debug.LogWarning("[ObstacleSpawner] ⚠️ Debris size mismatch! Consider updating maxDebrisHalfWidth to " + actualDebrisHalfWidth);
+            }
+        }
+        
+        Debug.Log("===========================================");
+    }
 
-    private void InitializePools()
+    private void ApplyRuntimeMetrics()
+    {
+        RuntimeGameplayMetrics.UpdateScrollSpeed(scrollSpeed);
+        passageWidthMultiplier = RuntimeGameplayMetrics.SafeMarginWidthMultiplier;
+        minObstacleSpacingY = RuntimeGameplayMetrics.MinObstacleSpacingY;
+    }
+
+    private void ApplyPickupScalesFromMetrics()
+    {
+        if (oxygenPickupPrefab != null)
+        {
+            if (RuntimeGameplayMetrics.TryGetUniformScaleForPickup(oxygenPickupPrefab.gameObject, out float scale))
+            {
+                oxygenPickupScale = scale;
+            }
+        }
+
+        if (adBoostPickupPrefab != null)
+        {
+            if (RuntimeGameplayMetrics.TryGetUniformScaleForPickup(adBoostPickupPrefab.gameObject, out float scale))
+            {
+                adBoostPickupScale = scale;
+            }
+        }
+    }
+    
+    /// <summary>
+    /// ДЕНЬ 8 FIX V4: Определяет ПОЛОВИНУ ШИРИНЫ (по оси X) из коллайдера
+    /// Это правильный подход для неправильных форм в вертикальном туннеле
+    /// </summary>
+    private float GetPrefabBiggestHalfWidth(GameObject prefab, string obstacleName)
+    {
+        float leftHalf;
+        float rightHalf;
+        float biggestHalf = GetPrefabBiggestHalfWidth(prefab, obstacleName, out leftHalf, out rightHalf);
+        return biggestHalf;
+    }
+
+    private float GetPrefabHalfWidthSymmetric(GameObject prefab, string obstacleName)
+    {
+        if (TryGetMinMaxXInRoot(prefab, out float minX, out float maxX, out string source))
+        {
+            float halfWidth = (maxX - minX) / 2f;
+            Debug.Log($"[ObstacleSpawner] {obstacleName} has {source}: halfWidth={halfWidth:F3} (minX={minX:F3}, maxX={maxX:F3})");
+            return halfWidth;
+        }
+
+        Debug.LogError($"[ObstacleSpawner] {obstacleName}: No collider AND no SpriteRenderer found!");
+        return 0f;
+    }
+    private bool TryGetMinMaxXInRoot(GameObject root, out float minX, out float maxX, out string source)
+    {
+        minX = float.MaxValue;
+        maxX = float.MinValue;
+        source = "";
+
+        bool found = false;
+        int colliderCount = 0;
+
+        Collider2D[] colliders = root.GetComponentsInChildren<Collider2D>(true);
+        foreach (Collider2D col in colliders)
+        {
+            if (AccumulateColliderMinMaxX(root.transform, col, ref minX, ref maxX))
+            {
+                found = true;
+                colliderCount++;
+            }
+        }
+
+        if (found)
+        {
+            source = colliderCount > 1 ? "Collider2D (children)" : colliders[0].GetType().Name;
+            return true;
+        }
+
+        SpriteRenderer[] srs = root.GetComponentsInChildren<SpriteRenderer>(true);
+        int spriteCount = 0;
+        foreach (SpriteRenderer sr in srs)
+        {
+            if (sr.sprite == null)
+                continue;
+
+            if (AccumulateSpriteMinMaxX(root.transform, sr, ref minX, ref maxX))
+            {
+                found = true;
+                spriteCount++;
+            }
+        }
+
+        if (found)
+        {
+            source = spriteCount > 1 ? "SpriteRenderer (children)" : "SpriteRenderer";
+            return true;
+        }
+
+        return false;
+    }
+    private bool AccumulateColliderMinMaxX(Transform root, Collider2D col, ref float minX, ref float maxX)
+    {
+        switch (col)
+        {
+            case CircleCollider2D circle:
+                return AccumulatePoints(root, circle.transform, new Vector2[]
+                {
+                    circle.offset + new Vector2(-circle.radius, 0f),
+                    circle.offset + new Vector2(circle.radius, 0f)
+                }, ref minX, ref maxX);
+
+            case BoxCollider2D box:
+                Vector2 half = box.size * 0.5f;
+                return AccumulatePoints(root, box.transform, new Vector2[]
+                {
+                    box.offset + new Vector2(-half.x, -half.y),
+                    box.offset + new Vector2(-half.x,  half.y),
+                    box.offset + new Vector2( half.x, -half.y),
+                    box.offset + new Vector2( half.x,  half.y)
+                }, ref minX, ref maxX);
+
+            case PolygonCollider2D poly:
+                if (poly.points == null || poly.points.Length == 0)
+                    return false;
+
+                Vector2[] pts = new Vector2[poly.points.Length];
+                for (int i = 0; i < poly.points.Length; i++)
+                    pts[i] = poly.points[i] + poly.offset;
+
+                return AccumulatePoints(root, poly.transform, pts, ref minX, ref maxX);
+        }
+
+        return false;
+    }
+
+    private bool AccumulateSpriteMinMaxX(Transform root, SpriteRenderer sr, ref float minX, ref float maxX)
+    {
+        Bounds bounds = sr.sprite.bounds;
+        Vector3 min = bounds.min;
+        Vector3 max = bounds.max;
+
+        Vector2[] pts = new Vector2[]
+        {
+            new Vector2(min.x, min.y),
+            new Vector2(min.x, max.y),
+            new Vector2(max.x, min.y),
+            new Vector2(max.x, max.y)
+        };
+
+        return AccumulatePoints(root, sr.transform, pts, ref minX, ref maxX);
+    }
+    private bool AccumulatePoints(Transform root, Transform child, Vector2[] localPoints, ref float minX, ref float maxX)
+    {
+        bool any = false;
+        foreach (Vector2 p in localPoints)
+        {
+            Vector3 world = child.TransformPoint(p);
+            Vector3 rootLocal = root.InverseTransformPoint(world);
+            minX = Mathf.Min(minX, rootLocal.x);
+            maxX = Mathf.Max(maxX, rootLocal.x);
+            any = true;
+        }
+
+        return any;
+    }
+    private float GetPrefabBiggestHalfWidth(GameObject prefab, string obstacleName, out float leftHalf, out float rightHalf)
+    {
+        leftHalf = 0f;
+        rightHalf = 0f;
+
+        if (TryGetMinMaxXInRoot(prefab, out float minX, out float maxX, out string source))
+        {
+            leftHalf = Mathf.Abs(minX);
+            rightHalf = Mathf.Abs(maxX);
+            float biggestHalf = Mathf.Max(leftHalf, rightHalf);
+            Debug.Log($"[ObstacleSpawner] {obstacleName} has {source}: biggestHalf={biggestHalf:F3} (minX={minX:F3}, maxX={maxX:F3})");
+            return biggestHalf;
+        }
+
+        Debug.LogError($"[ObstacleSpawner] {obstacleName}: No collider AND no SpriteRenderer found!");
+        return 0f;
+    }
+
+private void InitializePools()
     {
         rockPool = new ObjectPool<Rock>(rockPrefab, initialRockPoolSize, transform);
         debrisPool = new ObjectPool<Debris>(debrisPrefab, initialDebrisPoolSize, transform);
@@ -92,14 +391,16 @@ public class ObstacleSpawner : MonoBehaviour
     public void SetScrollSpeed(float speed)
     {
         scrollSpeed = speed;
+        ApplyRuntimeMetrics();
     }
 
     /// <summary>
     /// Спавн препятствия для сегмента туннеля
     /// День 7: Добавлена возможность спавна кислородных баллонов
     /// День 8: Добавлен спавн рекламных шариков (ПРИОРИТЕТ #1)
+    /// ДЕНЬ 8 FIX: Используем actualRockHalfWidth и actualDebrisHalfWidth
     /// </summary>
-    public bool SpawnObstacleForSegment(float segmentTopY, float segmentOffset, float segmentWidth, float chanceMultiplier = 1f, float segmentProgressY = float.NaN)
+    public bool SpawnObstacleForSegment(float segmentTopY, float leftWallX, float rightWallX, float chanceMultiplier = 1f, float segmentProgressY = float.NaN)
     {
         bool spawned = false;
 
@@ -107,7 +408,8 @@ public class ObstacleSpawner : MonoBehaviour
         if (spawnAdBoostEnabled && adBoostSpawnTimer >= adBoostSpawnInterval)
         {
             // Спавним рекламный шарик в ЦЕНТРЕ туннеля
-            SpawnAdBoostPickup(segmentTopY, segmentOffset);
+            float segmentCenterX = (leftWallX + rightWallX) * 0.5f;
+            SpawnAdBoostPickup(segmentTopY, segmentCenterX);
             adBoostSpawnTimer = 0f;
             spawned = true;
 
@@ -122,7 +424,8 @@ public class ObstacleSpawner : MonoBehaviour
         if (spawnOxygenEnabled && oxygenSpawnTimer >= oxygenSpawnInterval)
         {
             // Спавним кислород в ЦЕНТРЕ туннеля (легко собрать)
-            SpawnOxygenPickup(segmentTopY, segmentOffset);
+            float segmentCenterX = (leftWallX + rightWallX) * 0.5f;
+            SpawnOxygenPickup(segmentTopY, segmentCenterX);
             oxygenSpawnTimer = 0f;
             spawned = true;
 
@@ -141,59 +444,132 @@ public class ObstacleSpawner : MonoBehaviour
         if (Random.value > finalChance) return false;
 
         bool spawnRock = Random.value > 0.5f;
-        float maxRadius = spawnRock ? maxRockRadius : maxDebrisRadius;
-
-        // Границы туннеля
-        float leftWall = segmentOffset - segmentWidth / 2f;
-        float rightWall = segmentOffset + segmentWidth / 2f;
-
-        // Проход для submarine
-        float passageRadius = submarineRadius + safetyMargin;
-        float passageLeft = segmentOffset - passageRadius;
-        float passageRight = segmentOffset + passageRadius;
-
-        // Доступное пространство с каждой стороны
-        float leftSpace = passageLeft - leftWall;
-        float rightSpace = rightWall - passageRight;
-
-        // АДАПТИВНЫЙ РАЗМЕР: вычисляем максимальный радиус для каждой стороны
-        float minGap = 0.05f;
-        float maxLeftRadius = (leftSpace - minGap) / 2f;
-        float maxRightRadius = (rightSpace - minGap) / 2f;
         
-        float maxPossibleRadius = Mathf.Max(maxLeftRadius, maxRightRadius);
-        float obstacleRadius = Mathf.Clamp(maxPossibleRadius, minObstacleRadius, maxRadius);
+        // ДЕНЬ 8 FIX: Используем откалиброванные размеры!
+        float maxHalfWidth = spawnRock ? actualRockHalfWidth : actualDebrisHalfWidth;
+        float leftHalfBase = spawnRock ? actualRockLeftHalf : actualDebrisLeftHalf;
+        float rightHalfBase = spawnRock ? actualRockRightHalf : actualDebrisRightHalf;
 
-        // Пересчитываем зоны с адаптивным радиусом
-        float leftZoneStart = leftWall + obstacleRadius;
-        float leftZoneEnd = passageLeft - obstacleRadius;
+        // ════════════════════════════════════════════════════════════
+        // ДЕНЬ 8 FIX V5: КАМНИ КАК ОБВАЛЫ ОТ СТЕН
+        // Новая концепция: камни ВСЕГДА начинаются от стены
+        // Размер случайный (от минимума до максимально возможного)
+        // ════════════════════════════════════════════════════════════
         
-        float rightZoneStart = passageRight + obstacleRadius;
-        float rightZoneEnd = rightWall - obstacleRadius;
+        // Границы туннеля (точные по кривой Безье)
+        float leftWall = leftWallX;
+        float rightWall = rightWallX;
+        float segmentWidth = rightWall - leftWall;
 
-        float leftZoneWidth = leftZoneEnd - leftZoneStart;
-        float rightZoneWidth = rightZoneEnd - rightZoneStart;
-
-        if (leftZoneWidth < 0.05f && rightZoneWidth < 0.05f)
+        // Минимальный проход для submarine
+        float minPassageWidth = RuntimeGameplayMetrics.SafeMargin;
+        if (minPassageWidth <= 0f)
         {
             if (showDebugLogs)
-                Debug.Log($"[ObstacleSpawner] Too narrow even with min size: {segmentWidth:F2}");
+                Debug.LogWarning("[ObstacleSpawner] Submarine metrics not initialized yet. Skipping obstacle spawn.");
             return false;
         }
 
-        // Выбираем сторону
-        bool spawnLeft;
-        if (leftZoneWidth < 0.05f)
-            spawnLeft = false;
-        else if (rightZoneWidth < 0.05f)
-            spawnLeft = true;
+        if (showDebugLogs)
+        {
+            Debug.Log($"[ObstacleSpawner] Walls at Y={segmentTopY:F2}: LEFT={leftWall:F3}, RIGHT={rightWall:F3}, width={segmentWidth:F3}, requiredPassage={minPassageWidth:F3}");
+        }
+        
+        // Максимально возможный размер камня
+        float maxPossibleWidth = segmentWidth - minPassageWidth;
+        
+        // Проверяем что есть место для камня
+        if (maxPossibleWidth < minObstacleHalfWidth * 2)
+        {
+            if (showDebugLogs)
+                Debug.Log($"[ObstacleSpawner] Tunnel too narrow: width={segmentWidth:F3}, maxObstacle={maxPossibleWidth:F3}");
+            return false;
+        }
+        
+        // Выбираем сторону СЛУЧАЙНО
+        bool spawnLeft = Random.value > 0.5f;
+        
+        float obstacleHalfWidth = 0f;
+        float rockInwardWidth = 0f;
+        float rockScale = 1f;
+
+        if (spawnRock)
+        {
+            float inwardHalfBase = spawnLeft ? rightHalfBase : leftHalfBase;
+            float maxAllowedInward = Mathf.Min(maxPossibleWidth, inwardHalfBase);
+            float minAllowedInward = minObstacleHalfWidth;
+            if (minObstacleWidthFractionOfTunnel > 0f)
+            {
+                float minWidthFromFraction = maxPossibleWidth * minObstacleWidthFractionOfTunnel;
+                minAllowedInward = Mathf.Max(minAllowedInward, minWidthFromFraction);
+            }
+            minAllowedInward = Mathf.Max(minAllowedInward, maxAllowedInward * rockMinFractionOfMax);
+
+            if (maxAllowedInward < minAllowedInward)
+            {
+                if (showDebugLogs)
+                    Debug.Log($"[ObstacleSpawner] Rock inward width too small: min={minAllowedInward:F3}, max={maxAllowedInward:F3}, maxPossibleWidth={maxPossibleWidth:F3}");
+                return false;
+            }
+
+            // ВАЖНО: Размер СЛУЧАЙНЫЙ (не всегда максимум!)
+            rockInwardWidth = Random.Range(minAllowedInward, maxAllowedInward);
+            rockScale = inwardHalfBase > 0f ? rockInwardWidth / inwardHalfBase : 1f;
+            obstacleHalfWidth = rockInwardWidth;
+        }
         else
-            spawnLeft = Random.value > 0.5f;
+        {
+            // Ограничиваем максимальный размер
+            float maxAllowedHalf = Mathf.Min(maxPossibleWidth / 2f, maxHalfWidth);
+            float minAllowedHalf = minObstacleHalfWidth;
+            if (minObstacleWidthFractionOfTunnel > 0f)
+            {
+                float minWidthFromFraction = maxPossibleWidth * minObstacleWidthFractionOfTunnel;
+                minAllowedHalf = Mathf.Max(minAllowedHalf, minWidthFromFraction / 2f);
+            }
 
-        float spawnX = spawnLeft 
-            ? Random.Range(leftZoneStart, leftZoneEnd)
-            : Random.Range(rightZoneStart, rightZoneEnd);
-
+            if (maxAllowedHalf < minAllowedHalf)
+            {
+                if (showDebugLogs)
+                    Debug.Log($"[ObstacleSpawner] Allowed half too small: min={minAllowedHalf:F3}, max={maxAllowedHalf:F3}, maxPossibleWidth={maxPossibleWidth:F3}");
+                return false;
+            }
+            
+            // ВАЖНО: Размер СЛУЧАЙНЫЙ (не всегда максимум!)
+            obstacleHalfWidth = Random.Range(minAllowedHalf, maxAllowedHalf);
+        }
+        
+        // Позиция: основание камня У СТЕНЫ
+        float spawnX;
+        if (spawnLeft)
+        {
+            // Камень начинается от левой стены
+            if (spawnRock)
+            {
+                spawnX = leftWall;
+            }
+            else
+            {
+                float scale = maxHalfWidth > 0f ? obstacleHalfWidth / maxHalfWidth : 1f;
+                float leftHalfScaled = leftHalfBase * scale;
+                spawnX = leftWall + leftHalfScaled;
+            }
+        }
+        else
+        {
+            // Камень начинается от правой стены
+            if (spawnRock)
+            {
+                spawnX = rightWall;
+            }
+            else
+            {
+                float scale = maxHalfWidth > 0f ? obstacleHalfWidth / maxHalfWidth : 1f;
+                float rightHalfScaled = rightHalfBase * scale;
+                spawnX = rightWall - rightHalfScaled;
+            }
+        }
+        
         float spawnY = segmentTopY;
         Vector3 pos = new Vector3(spawnX, spawnY, 0f);
 
@@ -202,16 +578,89 @@ public class ObstacleSpawner : MonoBehaviour
         {
             Rock rock = rockPool.Get(pos, Quaternion.identity);
             rock.SetScrollSpeed(scrollSpeed);
-            float scale = obstacleRadius / maxRockRadius;
-            rock.transform.localScale = Vector3.one * scale;
+            
+            // Масштаб относительно "внутренней" половины (камень упирается в стену pivot-ом)
+            float scale = rockScale;
+            rock.transform.localScale = new Vector3(scale, scale, 1f);
+            float leftHalfScaled = actualRockLeftHalf * scale;
+            float rightHalfScaled = actualRockRightHalf * scale;
+            
+            // ДЕНЬ 8 FIX V5: Отражаем через ROTATION (не scale!)
+            // Rotation автоматически отражает физику и коллайдеры
+            // Оригинал смотрит ВПРАВО (для правой стены)
+            if (spawnLeft)
+            {
+                // Левая сторона - поворот на 180° по Y (отражение)
+                rock.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+            }
+            else
+            {
+                // Правая сторона - без поворота (оригинал)
+                rock.transform.rotation = Quaternion.identity;
+            }
+            
+            if (showDebugLogs)
+            {
+                float passageWidth = minPassageWidth;
+                float totalWidth = (leftHalfScaled + rightHalfScaled);
+                float inwardWidth = rockInwardWidth;
+                
+                Debug.Log($"[ObstacleSpawner] ━━━ Rock spawned (LANDSLIDE from wall) ━━━");
+                Debug.Log($"  Side: {(spawnLeft ? "LEFT" : "RIGHT")} wall");
+                Debug.Log($"  Flipped: {(spawnLeft ? "YES (rotation.y = 180°)" : "NO (rotation.y = 0°)")}");
+                Debug.Log($"  Tunnel width: {segmentWidth:F3}");
+                Debug.Log($"  Walls: LEFT={leftWall:F3}, RIGHT={rightWall:F3}");
+                Debug.Log($"  Required passage: {passageWidth:F3} (submarine * {passageWidthMultiplier:F2})");
+                Debug.Log($"  Max possible: {maxPossibleWidth:F3}");
+                Debug.Log($"  Total width: {totalWidth:F3} (includes into wall)");
+                Debug.Log($"  Inward width: {inwardWidth:F3} (inside tunnel)");
+                Debug.Log($"  Scale: {scale:F3} (= {rockInwardWidth:F3} / inwardHalfBase)");
+                Debug.Log($"  Position: X={spawnX:F3}, Y={spawnY:F3}");
+                Debug.Log($"  Rock edges: LEFT={spawnX - leftHalfScaled:F3}, RIGHT={spawnX + rightHalfScaled:F3}");
+                Debug.Log($"  actualRockHalfWidth from calibration: {actualRockHalfWidth:F3}");
+            }
         }
         else
         {
             Debris debris = debrisPool.Get(pos, Quaternion.identity);
             debris.SetScrollSpeed(scrollSpeed);
-            debris.SetRadius(obstacleRadius);
-            float scale = obstacleRadius / maxDebrisRadius;
-            debris.transform.localScale = Vector3.one * scale;
+            // Размер управляется через localScale ниже
+            
+            // ДЕНЬ 8 FIX V5: Масштаб относительно ОТКАЛИБРОВАННОГО размера (halfWidth)
+            float scale = obstacleHalfWidth / actualDebrisHalfWidth;
+            debris.transform.localScale = new Vector3(scale, scale, 1f);
+            float leftHalfScaled = actualDebrisLeftHalf * scale;
+            float rightHalfScaled = actualDebrisRightHalf * scale;
+            
+            // ДЕНЬ 8 FIX V5: Отражаем через ROTATION (не scale!)
+            // Rotation автоматически отражает физику и коллайдеры
+            // Оригинал смотрит ВПРАВО (для правой стены)
+            if (spawnLeft)
+            {
+                // Левая сторона - поворот на 180° по Y (отражение)
+                debris.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+            }
+            else
+            {
+                // Правая сторона - без поворота (оригинал)
+                debris.transform.rotation = Quaternion.identity;
+            }
+            
+            if (showDebugLogs)
+            {
+                float passageWidth = minPassageWidth;
+                float actualWidth = (leftHalfScaled + rightHalfScaled);
+                
+                Debug.Log($"[ObstacleSpawner] ━━━ Debris spawned (LANDSLIDE from wall) ━━━");
+                Debug.Log($"  Side: {(spawnLeft ? "LEFT" : "RIGHT")} wall");
+                Debug.Log($"  Flipped: {(spawnLeft ? "YES (rotation.y = 180°)" : "NO (rotation.y = 0°)")}");
+                Debug.Log($"  Tunnel width: {segmentWidth:F3}");
+                Debug.Log($"  Required passage: {passageWidth:F3} (submarine * {passageWidthMultiplier:F2})");
+                Debug.Log($"  Max possible: {maxPossibleWidth:F3}");
+                Debug.Log($"  Actual width: {actualWidth:F3} (biggestHalf: {obstacleHalfWidth:F3})");
+                Debug.Log($"  Scale: {scale:F3}");
+                Debug.Log($"  Position: X={spawnX:F3}, Y={spawnY:F3}");
+            }
         }
 
         if (showDebugLogs)
@@ -322,5 +771,26 @@ public class ObstacleSpawner : MonoBehaviour
             SpawnAdBoostPickup(spawnY, 0f);
         }
     }
+    
+    [ContextMenu("Debug: Recalibrate Sizes")]
+    private void DebugRecalibrateSizes()
+    {
+        CalibrateObstacleSizes();
+    }
+    
+    [ContextMenu("Debug: Show Current Sizes")]
+    private void DebugShowCurrentSizes()
+    {
+        Debug.Log("=== CURRENT OBSTACLE SIZES ===");
+        Debug.Log($"Rock: actual={actualRockHalfWidth:F3}, manual={maxRockHalfWidth:F3}");
+        Debug.Log($"Debris: actual={actualDebrisHalfWidth:F3}, manual={maxDebrisHalfWidth:F3}");
+        Debug.Log($"Auto-calibration: {(autoCalibrateSizes ? "ENABLED" : "DISABLED")}");
+        Debug.Log("===============================");
+    }
     #endif
 }
+
+
+
+
+

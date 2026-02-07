@@ -933,6 +933,53 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!1 &1157295926
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1157295928}
+  - component: {fileID: 1157295927}
+  m_Layer: 0
+  m_Name: LightBoostManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1157295927
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1157295926}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d5864b140c66764b8746bbd3436826c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  boostDuration: 20
+  startWithBoost: 0
+  showDebugLogs: 1
+--- !u!4 &1157295928
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1157295926}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.68811154, y: 0.449866, z: -0.02333519}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1289916801
 GameObject:
   m_ObjectHideFlags: 0
@@ -1279,20 +1326,28 @@ MonoBehaviour:
   rockPrefab: {fileID: 8506743268597302154, guid: 52e5e56feaa00c443b1996245c40aaa2, type: 3}
   debrisPrefab: {fileID: 413212105757274719, guid: 6c796d4e70948224d9299f7c4b0692fc, type: 3}
   oxygenPickupPrefab: {fileID: 3389034415734453921, guid: ba6434feb23568a489161f2fe6f9e71d, type: 3}
+  adBoostPickupPrefab: {fileID: 4232622947085703552, guid: 0d347705e07545447b67a6799e422bab, type: 3}
   spawnChance: 0.8
   minObstacleSpacingY: 0
   oxygenSpawnInterval: 12
   oxygenAmount: 25
+  oxygenPickupScale: 0.08
   spawnOxygenEnabled: 1
-  submarineRadius: 0.125
-  maxRockRadius: 0.15
-  maxDebrisRadius: 0.12
-  minObstacleRadius: 0.08
-  safetyMargin: 0.1
+  adBoostSpawnInterval: 35
+  adBoostPickupScale: 0.15
+  spawnAdBoostEnabled: 1
+  maxRockHalfWidth: 0.15
+  maxDebrisHalfWidth: 0.12
+  minObstacleHalfWidth: 0.08
+  minObstacleWidthFractionOfTunnel: 0.2
+  rockMinFractionOfMax: 0.7
+  passageWidthMultiplier: 1.5
+  autoCalibrateSizes: 1
+  showCalibrationInfo: 1
   initialRockPoolSize: 60
   initialDebrisPoolSize: 20
   initialOxygenPoolSize: 5
-  showDebugLogs: 0
+  showDebugLogs: 1
 --- !u!4 &1436356514
 Transform:
   m_ObjectHideFlags: 0
@@ -2118,6 +2173,9 @@ MonoBehaviour:
   currentState: 0
   targetFrameRate: 60
   preventSleep: 1
+  scrollSpeed: 2
+  mainCamera: {fileID: 1549150839}
+  submarinePrefab: {fileID: 279693182}
   showDebugLogs: 1
 --- !u!4 &2136866144
 Transform:
@@ -2153,7 +2211,7 @@ PrefabInstance:
     - target: {fileID: 3237618972858853461, guid: c795bfae3a287d04e840934880800da3, type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+      objectReference: {fileID: 21300000, guid: 8c819f34f1a0d33449160826af3053f7, type: 3}
     - target: {fileID: 5845576082070830329, guid: c795bfae3a287d04e840934880800da3, type: 3}
       propertyPath: m_BodyType
       value: 0
@@ -2172,15 +2230,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9088377565419435233, guid: c795bfae3a287d04e840934880800da3, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.75
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 9088377565419435233, guid: c795bfae3a287d04e840934880800da3, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.75
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 9088377565419435233, guid: c795bfae3a287d04e840934880800da3, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 10
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 9088377565419435233, guid: c795bfae3a287d04e840934880800da3, type: 3}
       propertyPath: m_LocalPosition.y
@@ -2218,7 +2276,8 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 579950049682646955, guid: c795bfae3a287d04e840934880800da3, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
@@ -2337,3 +2396,4 @@ SceneRoots:
   - {fileID: 1140092266}
   - {fileID: 1570947580}
   - {fileID: 1436356514}
+  - {fileID: 1157295928}

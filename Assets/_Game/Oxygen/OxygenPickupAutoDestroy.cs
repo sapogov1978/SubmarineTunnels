@@ -8,8 +8,7 @@ using UnityEngine;
 [RequireComponent(typeof(OxygenPickup))]
 public class OxygenPickupAutoDestroy : MonoBehaviour
 {
-    [Header("Settings")]
-    [SerializeField] private float destroyOffset = 2f; // дополнительное расстояние за пределами экрана
+        private float destroyOffset = 2f; // дополнительное расстояние за пределами экрана
 
     private Camera mainCamera;
     private float bottomBoundary;
@@ -27,6 +26,9 @@ public class OxygenPickupAutoDestroy : MonoBehaviour
     void Update()
     {
         if (!mainCamera) return;
+
+        if (RuntimeGameplayMetrics.ScrollSpeed > 0f)
+            destroyOffset = RuntimeGameplayMetrics.ScrollSpeed;
 
         // Вычисляем нижнюю границу экрана
         bottomBoundary = mainCamera.transform.position.y - mainCamera.orthographicSize - destroyOffset;

@@ -7,8 +7,8 @@ using UnityEngine;
 /// </summary>
 public class AdBoostPickup : MonoBehaviour
 {
-    [Header("Movement")]
-    [SerializeField] private float scrollSpeed = 2f;
+        private float scrollSpeed = 2f;
+    private float destroyOffset = 2f;
     [SerializeField] private bool rotateWhileMoving = true;
     [SerializeField] private float rotationSpeed = 60f; // градусов в секунду
 
@@ -21,11 +21,32 @@ public class AdBoostPickup : MonoBehaviour
     [SerializeField] private bool skipAdForTesting = true; // День 8: пропускаем рекламу
 
     private bool hasBeenCollected = false;
+    private Camera mainCamera;
+    private float bottomBoundary;
 
     void Update()
     {
+        if (!mainCamera)
+            mainCamera = Camera.main;
+
+        if (RuntimeGameplayMetrics.ScrollSpeed > 0f)
+        {
+            scrollSpeed = RuntimeGameplayMetrics.ScrollSpeed;
+            destroyOffset = RuntimeGameplayMetrics.ScrollSpeed;
+        }
+
         // Движение вниз синхронно с туннелем
         transform.Translate(Vector3.down * scrollSpeed * Time.deltaTime, Space.World);
+
+        if (mainCamera)
+        {
+            bottomBoundary = mainCamera.transform.position.y - mainCamera.orthographicSize - destroyOffset;
+            if (transform.position.y < bottomBoundary)
+            {
+                Destroy(gameObject);
+                return;
+            }
+        }
 
         // Вращение для привлечения внимания
         if (rotateWhileMoving)

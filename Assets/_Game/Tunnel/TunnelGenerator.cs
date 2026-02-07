@@ -43,6 +43,7 @@ public class TunnelGenerator : MonoBehaviour
     private int spawnedSegments = 0;
     private int segmentsSinceObstacle = 0;
     private float spawnedDistanceY = 0f;
+    private bool runtimeMetricsApplied = false;
 
     void Start()
     {
@@ -54,6 +55,7 @@ public class TunnelGenerator : MonoBehaviour
         targetWidth = tunnelWidth;
         prevWidth = tunnelWidth;
         narrowingSegments = Mathf.Max(1, (int)(scrollSpeed * 2));
+        runtimeMetricsApplied = ApplyRuntimeMetricsIfReady();
 
         float screenHeight = mainCamera.orthographicSize * 2f;
         segmentsOnScreen = Mathf.CeilToInt(screenHeight / segmentHeight) + 2;
@@ -77,6 +79,11 @@ public class TunnelGenerator : MonoBehaviour
         // НЕ обновляем туннель если игра закончилась
         if (GameManager.Instance != null && GameManager.Instance.IsGameOver())
             return;
+
+        if (!runtimeMetricsApplied)
+        {
+            runtimeMetricsApplied = ApplyRuntimeMetricsIfReady();
+        }
 
         foreach (var seg in segments)
         {
@@ -167,23 +174,43 @@ public class TunnelGenerator : MonoBehaviour
 
             float chanceMultiplier = widthChance * curveChance;
 
-            // Передаём КОНЕЧНЫЕ параметры сегмента (его верх)
-            bool spawned = obstacleSpawner.SpawnObstacleForSegment(
-                posY + segmentHeight,  // Y верха сегмента
-                newOffset,             // Offset КОНЦА сегмента
-                currentWidth,          // Ширина КОНЦА сегмента
-                chanceMultiplier,
-                spawnedDistanceY
-            );
-            if (spawned)
+            float segmentTopY = posY + segmentHeight;
+            if (seg.GetWallPositionsAtY(segmentTopY, out float leftWallX, out float rightWallX))
             {
-                segmentsSinceObstacle = 0;
+                // Передаём точные границы стен на высоте спавна
+                bool spawned = obstacleSpawner.SpawnObstacleForSegment(
+                    segmentTopY,
+                    leftWallX,
+                    rightWallX,
+                    chanceMultiplier,
+                    spawnedDistanceY
+                );
+                if (spawned)
+                {
+                    segmentsSinceObstacle = 0;
+                }
             }
         }
 
         prevWidth = currentWidth;
         lastOffset = newOffset;
         lastTopY = posY;
+    }
+
+    private bool ApplyRuntimeMetricsIfReady()
+    {
+        if (RuntimeGameplayMetrics.MinTunnelWidth <= 0f || RuntimeGameplayMetrics.MaxTunnelWidth <= 0f)
+            return false;
+
+        minTunnelWidth = RuntimeGameplayMetrics.MinTunnelWidth;
+        maxTunnelWidth = RuntimeGameplayMetrics.MaxTunnelWidth;
+
+        tunnelWidth = Mathf.Clamp(tunnelWidth, minTunnelWidth, maxTunnelWidth);
+        currentWidth = Mathf.Clamp(currentWidth, minTunnelWidth, maxTunnelWidth);
+        targetWidth = Mathf.Clamp(targetWidth, minTunnelWidth, maxTunnelWidth);
+        prevWidth = Mathf.Clamp(prevWidth, minTunnelWidth, maxTunnelWidth);
+
+        return true;
     }
     
     public float GetScrollSpeed() { return scrollSpeed; }
