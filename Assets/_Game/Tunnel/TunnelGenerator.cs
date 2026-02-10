@@ -2,8 +2,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Генератор туннеля
-/// ПРАВИЛЬНО: Препятствия спавнятся ПРИ СОЗДАНИИ сегмента с его параметрами
+/// Procedural tunnel generator with Bezier curves
+/// Spawns obstacles during segment creation with accurate wall positions
+/// Dynamically adjusts width and curvature for varied difficulty
 /// </summary>
 public class TunnelGenerator : MonoBehaviour
 {
@@ -11,9 +12,8 @@ public class TunnelGenerator : MonoBehaviour
     [SerializeField] private TunnelSegment segmentPrefab;
     [SerializeField] private float segmentHeight = 3f;
     [SerializeField] private float tunnelWidth = 1.5f;
-    [SerializeField] private float minTunnelWidth = 1f;
-    [SerializeField] private float maxTunnelWidth = 2.5f;
-    [SerializeField] private float scrollSpeed = 2f;
+    private float minTunnelWidth = 0f;
+    private float maxTunnelWidth = 0f;
 
     [Header("Screen Settings")]
     [SerializeField] private Camera mainCamera;
@@ -54,6 +54,7 @@ public class TunnelGenerator : MonoBehaviour
         currentWidth = tunnelWidth;
         targetWidth = tunnelWidth;
         prevWidth = tunnelWidth;
+        float scrollSpeed = RuntimeGameplayMetrics.ScrollSpeed;
         narrowingSegments = Mathf.Max(1, (int)(scrollSpeed * 2));
         runtimeMetricsApplied = ApplyRuntimeMetricsIfReady();
 
@@ -68,33 +69,36 @@ public class TunnelGenerator : MonoBehaviour
             SpawnSegment();
         }
 
-        if (obstacleSpawner != null)
-        {
-            obstacleSpawner.SetScrollSpeed(scrollSpeed);
-        }
+        // ObstacleSpawner reads runtime metrics directly; no scroll speed injection needed.
     }
 
     void Update()
     {
-        // НЕ обновляем туннель если игра закончилась
+        // Stop updating tunnel when game is over
         if (GameManager.Instance != null && GameManager.Instance.IsGameOver())
             return;
 
+        // Apply runtime metrics once they become available
         if (!runtimeMetricsApplied)
         {
             runtimeMetricsApplied = ApplyRuntimeMetricsIfReady();
         }
 
-        foreach (var seg in segments)
+        // Scroll all tunnel segments downward
+        float scrollSpeed = RuntimeGameplayMetrics.ScrollSpeed;
+        if (scrollSpeed > 0f)
         {
-            seg.transform.Translate(Vector3.down * scrollSpeed * Time.deltaTime);
+            foreach (var seg in segments)
+            {
+                seg.transform.Translate(Vector3.down * scrollSpeed * Time.deltaTime);
+            }
+            lastTopY -= scrollSpeed * Time.deltaTime;
         }
-        lastTopY -= scrollSpeed * Time.deltaTime;
 
+        // Spawn new segment when the last segment's top edge enters visible area
         if (segments.Count > 0)
         {
             var lastSeg = lastSpawnedSegment;
-            // Спавним сегмент когда верхний край последнего сегмента выходит за верхнюю границу видимой области
             float topScreenBoundary = mainCamera.transform.position.y + mainCamera.orthographicSize;
             if (lastSeg != null && lastSeg.GetTopY() < topScreenBoundary)
             {
@@ -102,6 +106,7 @@ public class TunnelGenerator : MonoBehaviour
             }
         }
 
+        // Destroy segments that have scrolled off-screen
         float destroyY = mainCamera.transform.position.y - mainCamera.orthographicSize - (segmentHeight * 3);
         while (segments.Count > 0 && segments.Peek().GetBottomY() < destroyY)
         {
@@ -129,6 +134,7 @@ public class TunnelGenerator : MonoBehaviour
         
         float step = 1f / narrowingSegments;
         currentWidth = Mathf.Lerp(currentWidth, targetWidth, step);
+        RuntimeGameplayMetrics.UpdateCurrentTunnelWidth(currentWidth);
 
         float usableWidth = screenHalfWidth * 2f - (uiMargin * 2f);
         float maxAllowedOffset = (usableWidth - currentWidth) / 2f;
@@ -162,22 +168,25 @@ public class TunnelGenerator : MonoBehaviour
         segmentsSinceObstacle++;
         spawnedDistanceY += segmentHeight;
 
-        // КЛЮЧЕВОЙ МОМЕНТ: Спавним препятствие СРАЗУ с параметрами этого сегмента
+        // Spawn obstacle with this segment's parameters
+        // Obstacles are spawned immediately to ensure accurate wall alignment
         if (obstacleSpawner != null && spawnedSegments > safeStartSegments && segmentsSinceObstacle > obstacleCooldownSegments)
         {
+            // Calculate spawn chance based on tunnel width (narrower = less obstacles)
             float widthT = Mathf.InverseLerp(minTunnelWidth, maxTunnelWidth, currentWidth);
             float widthChance = Mathf.Lerp(narrowWidthChanceMultiplier, 1f, widthT);
 
+            // Calculate spawn chance based on tunnel curvature (sharper curves = less obstacles)
             float curveDelta = Mathf.Abs(newOffset - lastOffset);
             float curveT = Mathf.InverseLerp(0f, curvePenaltyOffset, curveDelta);
             float curveChance = Mathf.Lerp(1f, curveChanceMultiplier, curveT);
 
             float chanceMultiplier = widthChance * curveChance;
 
+            // Get exact wall positions at spawn height for precise obstacle placement
             float segmentTopY = posY + segmentHeight;
             if (seg.GetWallPositionsAtY(segmentTopY, out float leftWallX, out float rightWallX))
             {
-                // Передаём точные границы стен на высоте спавна
                 bool spawned = obstacleSpawner.SpawnObstacleForSegment(
                     segmentTopY,
                     leftWallX,
@@ -204,6 +213,9 @@ public class TunnelGenerator : MonoBehaviour
 
         minTunnelWidth = RuntimeGameplayMetrics.MinTunnelWidth;
         maxTunnelWidth = RuntimeGameplayMetrics.MaxTunnelWidth;
+        float scrollSpeed = RuntimeGameplayMetrics.ScrollSpeed;
+        if (scrollSpeed > 0f)
+            narrowingSegments = Mathf.Max(1, (int)(scrollSpeed * 2));
 
         tunnelWidth = Mathf.Clamp(tunnelWidth, minTunnelWidth, maxTunnelWidth);
         currentWidth = Mathf.Clamp(currentWidth, minTunnelWidth, maxTunnelWidth);
@@ -213,7 +225,7 @@ public class TunnelGenerator : MonoBehaviour
         return true;
     }
     
-    public float GetScrollSpeed() { return scrollSpeed; }
+    public float GetScrollSpeed() { return RuntimeGameplayMetrics.ScrollSpeed; }
     public IEnumerable<TunnelSegment> GetSegments() { return segments; }
 }
 

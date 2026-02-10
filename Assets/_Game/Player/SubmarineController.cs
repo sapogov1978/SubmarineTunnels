@@ -1,14 +1,18 @@
 using UnityEngine;
 
+/// <summary>
+/// Controls submarine movement with touch/mouse input
+/// Submarine moves horizontally while maintaining fixed Y position
+/// Uses smooth damping for responsive yet fluid movement
+/// </summary>
 public class SubmarineController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 5f;
-    [SerializeField] private float maxX = 2.5f;
-    
+
     [Header("Fixed Position")]
-    [SerializeField] private float fixedY = -3f;  // Fixed Y position (lower quarter of screen)
-    [SerializeField] private float fixedZ = 0f;   // Fixed Z position
-    [SerializeField] private bool autoCalculateY = true;
+    [SerializeField] private float fixedY = -3f;  // Fixed Y position in world space
+    [SerializeField] private float fixedZ = 0f;   // Fixed Z position for 2D rendering
+    [SerializeField] private bool autoCalculateY = true;  // Auto-calculate Y based on screen size
     [SerializeField] private Camera mainCamera;
 
     private Vector2 startTouchPos;
@@ -25,6 +29,7 @@ public class SubmarineController : MonoBehaviour
 
     void Start()
     {
+        // Initialize Rigidbody2D with required settings
         rb = GetComponent<Rigidbody2D>();
         if (rb == null)
         {
@@ -35,19 +40,18 @@ public class SubmarineController : MonoBehaviour
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         rb.interpolation = RigidbodyInterpolation2D.Interpolate;
 
-        // FIXED: Set submarine position on Start, not in first frame
+        // Calculate Y position based on screen size
         if (autoCalculateY)
         {
             if (!mainCamera) mainCamera = Camera.main;
-            
-            // Position at 25% from bottom of screen
-            // Camera is at Y=0, orthographicSize is half screen height
-            // So bottom is at -orthographicSize
-            // 25% from bottom = -orthographicSize + (orthographicSize * 0.5)
+
+            // Position submarine at lower portion of screen (30% from bottom)
+            // Camera center is at Y=0, orthographicSize is half screen height
+            // Bottom edge is at -orthographicSize
             fixedY = -mainCamera.orthographicSize * 0.7f;
         }
-        
-        // Set initial position immediately
+
+        // Set initial position
         transform.position = new Vector3(0f, fixedY, fixedZ);
         targetX = transform.position.x;
         desiredX = targetX;
@@ -79,6 +83,9 @@ public class SubmarineController : MonoBehaviour
         rb.MovePosition(new Vector2(targetX, fixedY));
     }
 
+    /// <summary>
+    /// Handle touch input (mobile devices)
+    /// </summary>
     private void HandleTouch()
     {
         if (Input.touchCount == 0) return;
@@ -93,6 +100,7 @@ public class SubmarineController : MonoBehaviour
         }
         else if (touch.phase == TouchPhase.Moved && isTouching)
         {
+            // Reset reference point during knockback dampening
             if (inputDampTimer > 0f)
             {
                 startTouchPos = touch.position;
@@ -107,6 +115,9 @@ public class SubmarineController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Handle mouse input (editor and desktop builds)
+    /// </summary>
     private void HandleMouse()
     {
         if (Input.GetMouseButtonDown(0))
@@ -117,6 +128,7 @@ public class SubmarineController : MonoBehaviour
         }
         else if (Input.GetMouseButton(0) && isTouching)
         {
+            // Reset reference point during knockback dampening
             if (inputDampTimer > 0f)
             {
                 startTouchPos = Input.mousePosition;
@@ -131,26 +143,36 @@ public class SubmarineController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Calculate and apply movement based on input delta
+    /// </summary>
     private void Move(float deltaX)
     {
+        // Reduce input sensitivity during knockback
         if (inputDampTimer > 0f)
         {
             deltaX *= knockbackInputDampFactor;
         }
 
         float nextX = startSubX + deltaX * moveSpeed;
-        desiredX = Mathf.Clamp(nextX, -maxX, maxX);
+        desiredX = nextX;
     }
 
+    /// <summary>
+    /// Apply knockback force without boundary constraints
+    /// </summary>
     public void ApplyKnockback(float pushX)
     {
-        desiredX = Mathf.Clamp(desiredX + pushX, -maxX, maxX);
+        desiredX = desiredX + pushX;
         targetX = desiredX;
         targetXVelocity = 0f;
         startSubX = desiredX;
         inputDampTimer = knockbackInputDampDuration;
     }
 
+    /// <summary>
+    /// Apply knockback force with boundary clamping to keep submarine within tunnel
+    /// </summary>
     public void ApplyKnockbackClamped(float pushX, float minX, float maxXClamp)
     {
         desiredX = Mathf.Clamp(desiredX + pushX, minX, maxXClamp);
@@ -159,4 +181,6 @@ public class SubmarineController : MonoBehaviour
         startSubX = desiredX;
         inputDampTimer = knockbackInputDampDuration;
     }
+
+    
 }

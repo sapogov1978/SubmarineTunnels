@@ -2,25 +2,25 @@ using UnityEngine;
 using System;
 
 /// <summary>
-/// Управляет световым бустом для батискафа
-/// Активируется после просмотра рекламы (пока заглушка)
-/// День 8: Создание системы буста
+/// Manages light boost power-up for submarine
+/// Activated after ad viewing (currently placeholder)
+/// Provides temporary lighting enhancement
 /// </summary>
 public class LightBoostManager : MonoBehaviour
 {
     public static LightBoostManager Instance { get; private set; }
 
     [Header("Boost Settings")]
-    [SerializeField] private float boostDuration = 30f; // секунды
-    [SerializeField] private bool startWithBoost = false; // для тестирования
+    [SerializeField] private float boostDuration = 30f;  // Seconds
+    [SerializeField] private bool startWithBoost = false;  // For testing
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
 
-    // События для других систем
+    // Events for other systems
     public event Action OnBoostActivated;
     public event Action OnBoostEnded;
-    public event Action<float> OnBoostTimeChanged; // параметр: оставшееся время
+    public event Action<float> OnBoostTimeChanged;  // Parameter: remaining time
 
     private bool isBoostActive = false;
     private float boostTimer = 0f;
@@ -38,7 +38,7 @@ public class LightBoostManager : MonoBehaviour
 
     void Start()
     {
-        // Для тестирования можно начать с активным бустом
+        // For testing: can start with active boost
         if (startWithBoost)
         {
             ActivateBoost();
@@ -47,15 +47,15 @@ public class LightBoostManager : MonoBehaviour
 
     void Update()
     {
-        // Обновляем таймер если буст активен
+        // Update timer if boost is active
         if (isBoostActive)
         {
             boostTimer -= Time.deltaTime;
 
-            // Уведомляем UI о времени
+            // Notify UI about time change
             OnBoostTimeChanged?.Invoke(boostTimer);
 
-            // Проверяем окончание буста
+            // Check if boost has ended
             if (boostTimer <= 0f)
             {
                 DeactivateBoost();
@@ -64,32 +64,36 @@ public class LightBoostManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Активировать световой буст на заданное время
+    /// Activate light boost for specified duration
     /// </summary>
-    public void ActivateBoost()
+    public void ActivateBoost(float? durationOverride = null)
     {
+        float duration = (durationOverride.HasValue && durationOverride.Value > 0f)
+            ? durationOverride.Value
+            : boostDuration;
+
         if (isBoostActive)
         {
-            // Если буст уже активен - продлеваем время
-            boostTimer = boostDuration;
-            
+            // If boost is already active - extend duration
+            boostTimer = duration;
+
             if (showDebugLogs)
                 Debug.Log($"[LightBoostManager] Boost time extended! New timer: {boostTimer:F0}s");
-            
+
             return;
         }
 
         isBoostActive = true;
-        boostTimer = boostDuration;
+        boostTimer = duration;
 
         OnBoostActivated?.Invoke();
 
         if (showDebugLogs)
-            Debug.Log($"[LightBoostManager] ✨ Boost ACTIVATED for {boostDuration}s!");
+            Debug.Log($"[LightBoostManager] Boost ACTIVATED for {duration}s!");
     }
 
     /// <summary>
-    /// Деактивировать световой буст
+    /// Deactivate light boost
     /// </summary>
     private void DeactivateBoost()
     {
@@ -101,11 +105,11 @@ public class LightBoostManager : MonoBehaviour
         OnBoostEnded?.Invoke();
 
         if (showDebugLogs)
-            Debug.Log("[LightBoostManager] 🌑 Boost ENDED");
+            Debug.Log("[LightBoostManager] Boost ENDED");
     }
 
     /// <summary>
-    /// Проверка активен ли буст
+    /// Check if boost is currently active
     /// </summary>
     public bool IsBoostActive()
     {
@@ -113,7 +117,7 @@ public class LightBoostManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Получить оставшееся время буста
+    /// Get remaining boost time
     /// </summary>
     public float GetRemainingTime()
     {
@@ -121,14 +125,14 @@ public class LightBoostManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Принудительно остановить буст (для тестирования)
+    /// Force stop boost (for testing)
     /// </summary>
     public void StopBoost()
     {
         DeactivateBoost();
     }
 
-    // DEBUG методы для тестирования
+    // Test methods for debugging
     #if UNITY_EDITOR
     [ContextMenu("Test: Activate Boost")]
     private void TestActivateBoost()

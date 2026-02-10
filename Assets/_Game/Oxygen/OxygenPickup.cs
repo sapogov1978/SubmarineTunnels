@@ -1,19 +1,18 @@
 using UnityEngine;
 
 /// <summary>
-/// Собираемый кислородный баллон
-/// Восстанавливает кислород при столкновении с батискафом
-/// День 7: Дать игроку возможность продлевать жизнь
+/// Collectible oxygen canister pickup
+/// Restores oxygen when collected by submarine
+/// Uses object pooling for efficient spawning
 /// </summary>
 public class OxygenPickup : MonoBehaviour
 {
     [Header("Oxygen Settings")]
-    [SerializeField] private float oxygenAmount = 25f; // Сколько % кислорода восстанавливает
+    [SerializeField] private float oxygenAmount = 25f;  // Percentage of oxygen restored
 
     [Header("Movement")]
-    private float scrollSpeed = 2f;
     [SerializeField] private bool rotateWhileMoving = true;
-    [SerializeField] private float rotationSpeed = 45f; // градусов в секунду
+    [SerializeField] private float rotationSpeed = 22.5f;  // Degrees per second
 
     [Header("Visual Feedback")]
     [SerializeField] private GameObject pickupEffectPrefab;
@@ -26,7 +25,7 @@ public class OxygenPickup : MonoBehaviour
 
     void Start()
     {
-        // DEBUG: Проверяем наличие необходимых компонентов
+        // Validate components in debug mode
         if (showDebugLogs)
         {
             ValidateComponents();
@@ -35,13 +34,14 @@ public class OxygenPickup : MonoBehaviour
 
     void Update()
     {
-        if (RuntimeGameplayMetrics.ScrollSpeed > 0f)
-            scrollSpeed = RuntimeGameplayMetrics.ScrollSpeed;
+        // Move downward synchronized with tunnel scroll
+        float scrollSpeed = RuntimeGameplayMetrics.ScrollSpeed;
+        if (scrollSpeed <= 0f)
+            return;
 
-        // Движение вниз синхронно с туннелем
         transform.Translate(Vector3.down * scrollSpeed * Time.deltaTime, Space.World);
 
-        // Вращение для визуального эффекта
+        // Rotate for visual effect
         if (rotateWhileMoving)
         {
             transform.Rotate(Vector3.forward, rotationSpeed * Time.deltaTime);
@@ -49,17 +49,16 @@ public class OxygenPickup : MonoBehaviour
     }
 
     /// <summary>
-    /// Обработка столкновения с батискафом
+    /// Handle collision with submarine
     /// </summary>
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // DEBUG: Всегда логируем столкновения если включены логи
         if (showDebugLogs)
         {
-            Debug.Log($"[OxygenPickup] ⚡ OnTriggerEnter2D с объектом: '{other.gameObject.name}', Tag: '{other.tag}', Layer: {LayerMask.LayerToName(other.gameObject.layer)}");
+            Debug.Log($"[OxygenPickup] OnTriggerEnter2D with: '{other.gameObject.name}', Tag: '{other.tag}'");
         }
-        
-        // Проверяем что столкнулись с игроком
+
+        // Check if collided with player
         if (other.CompareTag("Player") && !hasBeenCollected)
         {
             hasBeenCollected = true;
@@ -67,40 +66,39 @@ public class OxygenPickup : MonoBehaviour
         }
         else if (showDebugLogs)
         {
-            // DEBUG: Объясняем почему НЕ собрали
             if (!other.CompareTag("Player"))
             {
-                Debug.LogWarning($"[OxygenPickup] ❌ Тег '{other.tag}' не равен 'Player' - баллон НЕ собран!");
+                Debug.LogWarning($"[OxygenPickup] Tag '{other.tag}' is not 'Player' - canister NOT collected!");
             }
             else if (hasBeenCollected)
             {
-                Debug.LogWarning($"[OxygenPickup] ❌ Баллон уже был собран ранее!");
+                Debug.LogWarning($"[OxygenPickup] Canister already collected!");
             }
         }
     }
-    
+
     /// <summary>
-    /// DEBUG: Обработка физического столкновения (если Is Trigger = FALSE)
-    /// Этот метод НЕ должен срабатывать в нормальных условиях!
+    /// DEBUG: Handle physical collision (if Is Trigger = FALSE)
+    /// This should NOT trigger in normal conditions!
     /// </summary>
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (showDebugLogs)
         {
-            Debug.LogError($"[OxygenPickup] ⚠️ COLLISION (не триггер!) с: {collision.gameObject.name}");
-            Debug.LogError($"[OxygenPickup] ⚠️ ПРОБЛЕМА: Коллайдер должен быть Is Trigger = TRUE!");
+            Debug.LogError($"[OxygenPickup] COLLISION (not trigger!) with: {collision.gameObject.name}");
+            Debug.LogError($"[OxygenPickup] PROBLEM: Collider must have Is Trigger = TRUE!");
         }
     }
 
     /// <summary>
-    /// Сбор кислородного баллона
+    /// Collect oxygen canister and restore oxygen
     /// </summary>
     private void CollectPickup()
     {
         if (showDebugLogs)
             Debug.Log($"[OxygenPickup] Collected! +{oxygenAmount}% oxygen");
 
-        // Восстанавливаем кислород через OxygenManager
+        // Restore oxygen through OxygenManager
         if (OxygenManager.Instance != null)
         {
             float oxygenBefore = OxygenManager.Instance.GetOxygenPercentage();
@@ -115,19 +113,19 @@ public class OxygenPickup : MonoBehaviour
             Debug.LogError("[OxygenPickup] OxygenManager not found!");
         }
 
-        // Визуальный эффект
+        // Visual effect
         if (pickupEffectPrefab != null)
         {
             Instantiate(pickupEffectPrefab, transform.position, Quaternion.identity);
         }
 
-        // Звуковой эффект
+        // Sound effect
         if (pickupSound != null && AudioManager.Instance != null)
         {
             AudioManager.Instance.PlaySFX(pickupSound);
         }
 
-        // ВАЖНО: Возвращаем в пул вместо уничтожения (как в Debris.cs)
+        // Return to pool instead of destroying (like Debris.cs)
         ObstacleSpawner spawner = FindObjectOfType<ObstacleSpawner>();
         if (spawner != null)
         {
@@ -135,97 +133,89 @@ public class OxygenPickup : MonoBehaviour
         }
         else
         {
-            // Fallback: деактивируем или уничтожаем
+            // Fallback: deactivate or destroy
             gameObject.SetActive(false);
         }
     }
 
     /// <summary>
-    /// Сброс состояния для переиспользования в Object Pool
+    /// Reset state for object pool reuse
     /// </summary>
     public void ResetPickup()
     {
         hasBeenCollected = false;
         transform.rotation = Quaternion.identity;
-        transform.localScale = Vector3.one; // Восстанавливаем базовый масштаб
+        transform.localScale = Vector3.one;
     }
 
     /// <summary>
-    /// Установить скорость скроллинга (вызывается из спавнера)
-    /// </summary>
-    public void SetScrollSpeed(float speed)
-    {
-        scrollSpeed = speed;
-    }
-
-    /// <summary>
-    /// Установить количество восстанавливаемого кислорода
+    /// Set amount of oxygen restored on pickup
     /// </summary>
     public void SetOxygenAmount(float amount)
     {
         oxygenAmount = amount;
     }
 
-    // DEBUG метод для тестирования
+    // Test method for debugging
     #if UNITY_EDITOR
     [ContextMenu("Test: Collect Pickup")]
     private void TestCollectPickup()
     {
         CollectPickup();
     }
-    
+
     /// <summary>
-    /// DEBUG: Проверка правильности настройки компонентов
+    /// DEBUG: Validate component configuration
     /// </summary>
     private void ValidateComponents()
     {
-        Debug.Log("=== [OxygenPickup] Проверка компонентов ===");
-        
-        // Проверка Rigidbody2D
+        Debug.Log("=== [OxygenPickup] Component Validation ===");
+
+        // Check Rigidbody2D
         Rigidbody2D rb = GetComponent<Rigidbody2D>();
         if (rb != null)
         {
-            Debug.Log($"✅ Rigidbody2D: ЕСТЬ (Body Type: {rb.bodyType})");
+            Debug.Log($"✅ Rigidbody2D: FOUND (Body Type: {rb.bodyType})");
             if (rb.bodyType != RigidbodyType2D.Kinematic)
             {
-                Debug.LogWarning($"⚠️ Rigidbody2D должен быть Kinematic, а не {rb.bodyType}!");
+                Debug.LogWarning($"⚠️ Rigidbody2D should be Kinematic, not {rb.bodyType}!");
             }
         }
         else
         {
-            Debug.LogError("❌ Rigidbody2D: НЕТ! Добавьте компонент Rigidbody2D!");
+            Debug.LogError("❌ Rigidbody2D: NOT FOUND! Add Rigidbody2D component!");
         }
-        
-        // Проверка Collider2D
+
+        // Check Collider2D
         Collider2D col = GetComponent<Collider2D>();
         if (col != null)
         {
-            Debug.Log($"✅ Collider2D: ЕСТЬ (Тип: {col.GetType().Name})");
+            Debug.Log($"✅ Collider2D: FOUND (Type: {col.GetType().Name})");
             if (col.isTrigger)
             {
-                Debug.Log("✅ Is Trigger: TRUE (правильно)");
+                Debug.Log("✅ Is Trigger: TRUE (correct)");
             }
             else
             {
-                Debug.LogError("❌ Is Trigger: FALSE! Включите Is Trigger в коллайдере!");
+                Debug.LogError("❌ Is Trigger: FALSE! Enable Is Trigger on collider!");
             }
         }
         else
         {
-            Debug.LogError("❌ Collider2D: НЕТ! Добавьте Circle/Polygon Collider2D!");
+            Debug.LogError("❌ Collider2D: NOT FOUND! Add Circle/Polygon Collider2D!");
         }
-        
-        // Проверка SpriteRenderer
+
+        // Check SpriteRenderer
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         if (sr != null)
         {
-            Debug.Log($"✅ SpriteRenderer: ЕСТЬ (Sprite: {(sr.sprite != null ? sr.sprite.name : "NULL")})");
+            Debug.Log($"✅ SpriteRenderer: FOUND (Sprite: {(sr.sprite != null ? sr.sprite.name : "NULL")})");
         }
         else
         {
-            Debug.LogWarning("⚠️ SpriteRenderer: НЕТ (баллон не будет виден)");
+            Debug.LogWarning("⚠️ SpriteRenderer: NOT FOUND (canister will be invisible)");
         }
-        
+
         Debug.Log("===========================================");
     }
     #endif

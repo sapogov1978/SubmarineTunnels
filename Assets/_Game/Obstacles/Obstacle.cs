@@ -1,8 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Базовый класс для всех препятствий в игре
-/// Наследуйте от этого класса для создания конкретных типов препятствий
+/// Base class for all obstacles in the game
+/// Inherit from this class to create specific obstacle types
+/// Handles collision detection, effects, and pooling reset
 /// </summary>
 public abstract class Obstacle : MonoBehaviour
 {
@@ -20,7 +21,7 @@ public abstract class Obstacle : MonoBehaviour
     protected bool hasBeenHit = false;
 
     /// <summary>
-    /// Вызывается при столкновении с игроком
+    /// Called when colliding with player
     /// </summary>
     protected virtual void OnTriggerEnter2D(Collider2D other)
     {
@@ -32,28 +33,28 @@ public abstract class Obstacle : MonoBehaviour
     }
 
     /// <summary>
-    /// Обработка столкновения
-    /// ВАЖНО: Урон наносится CollisionDetector.cs, а не здесь!
-    /// Это предотвращает дублирование урона
+    /// Handle collision impact
+    /// NOTE: Damage is applied by CollisionDetector.cs, not here!
+    /// This prevents damage duplication
     /// </summary>
     protected virtual void OnHit(GameObject player)
     {
         if (showDebugLogs)
             Debug.Log($"[{GetType().Name}] Hit player! destroyOnHit={destroyOnHit}");
 
-        // Визуальный эффект
+        // Visual effect
         if (hitEffectPrefab != null)
         {
             Instantiate(hitEffectPrefab, transform.position, Quaternion.identity);
         }
 
-        // Звуковой эффект
+        // Sound effect
         if (hitSound != null && AudioManager.Instance != null)
         {
             AudioManager.Instance.PlaySFX(hitSound);
         }
 
-        // Уничтожаем препятствие если нужно
+        // Destroy obstacle if configured to do so
         if (destroyOnHit)
         {
             if (showDebugLogs)
@@ -63,13 +64,13 @@ public abstract class Obstacle : MonoBehaviour
     }
 
     /// <summary>
-    /// Сброс состояния для переиспользования (Object Pooling)
-    /// ДЕНЬ 8 FIX V5: Добавлен сброс rotation (для отражения обвалов)
+    /// Reset state for object pooling reuse
+    /// Resets rotation for mirrored debris and collision flag
     /// </summary>
     public virtual void ResetObstacle()
     {
         hasBeenHit = false;
-        transform.rotation = Quaternion.identity;  // Сбрасываем поворот
+        transform.rotation = Quaternion.identity;
     }
 
     public float GetDamage()

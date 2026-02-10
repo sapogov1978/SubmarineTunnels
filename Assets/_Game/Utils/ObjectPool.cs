@@ -2,11 +2,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Generic Object Pool для переиспользования объектов
-/// Уменьшает нагрузку на GC и улучшает производительность
-/// День 7: Добавлена поддержка OxygenPickup
+/// Generic object pool for reusing objects
+/// Reduces GC pressure and improves performance
+/// Supports Obstacles, OxygenPickup, and other MonoBehaviour types
 /// </summary>
-/// <typeparam name="T">Тип компонента (должен быть MonoBehaviour)</typeparam>
+/// <typeparam name="T">Component type (must be MonoBehaviour)</typeparam>
 public class ObjectPool<T> where T : MonoBehaviour
 {
     private T prefab;
@@ -15,18 +15,18 @@ public class ObjectPool<T> where T : MonoBehaviour
     private int initialSize;
 
     /// <summary>
-    /// Конструктор пула
+    /// Object pool constructor
     /// </summary>
-    /// <param name="prefab">Префаб для создания объектов</param>
-    /// <param name="initialSize">Начальный размер пула</param>
-    /// <param name="parent">Родительский Transform (для организации иерархии)</param>
+    /// <param name="prefab">Prefab to create objects from</param>
+    /// <param name="initialSize">Initial pool size</param>
+    /// <param name="parent">Parent transform for hierarchy organization</param>
     public ObjectPool(T prefab, int initialSize = 10, Transform parent = null)
     {
         this.prefab = prefab;
         this.initialSize = initialSize;
         this.parent = parent;
 
-        // Предварительное создание объектов
+        // Pre-create objects
         for (int i = 0; i < initialSize; i++)
         {
             CreateNewObject();
@@ -34,18 +34,18 @@ public class ObjectPool<T> where T : MonoBehaviour
     }
 
     /// <summary>
-    /// Получить объект из пула
+    /// Get object from pool
     /// </summary>
     public T Get()
     {
         T obj;
 
-        // Если в пуле есть объекты - берём оттуда
+        // If pool has objects - get from pool
         if (pool.Count > 0)
         {
             obj = pool.Dequeue();
         }
-        // Иначе создаём новый
+        // Otherwise create new object
         else
         {
             obj = CreateNewObject();
@@ -56,7 +56,7 @@ public class ObjectPool<T> where T : MonoBehaviour
     }
 
     /// <summary>
-    /// Получить объект с заданной позицией и вращением
+    /// Get object with specified position and rotation
     /// </summary>
     public T Get(Vector3 position, Quaternion rotation)
     {
@@ -67,28 +67,28 @@ public class ObjectPool<T> where T : MonoBehaviour
     }
 
     /// <summary>
-    /// Вернуть объект в пул
+    /// Return object to pool
     /// </summary>
     public void Return(T obj)
     {
         obj.gameObject.SetActive(false);
-        
-        // Сброс состояния если объект - Obstacle
+
+        // Reset state if object is Obstacle
         if (obj is Obstacle obstacle)
         {
             obstacle.ResetObstacle();
         }
-        // День 7: Сброс состояния если объект - OxygenPickup
+        // Reset state if object is OxygenPickup
         else if (obj is OxygenPickup pickup)
         {
             pickup.ResetPickup();
         }
-        
+
         pool.Enqueue(obj);
     }
 
     /// <summary>
-    /// Создать новый объект
+    /// Create new object instance
     /// </summary>
     private T CreateNewObject()
     {
@@ -98,7 +98,7 @@ public class ObjectPool<T> where T : MonoBehaviour
     }
 
     /// <summary>
-    /// Получить текущий размер пула
+    /// Get current pool size
     /// </summary>
     public int GetPoolSize()
     {
@@ -106,7 +106,7 @@ public class ObjectPool<T> where T : MonoBehaviour
     }
 
     /// <summary>
-    /// Очистить весь пул
+    /// Clear entire pool
     /// </summary>
     public void Clear()
     {
@@ -122,13 +122,13 @@ public class ObjectPool<T> where T : MonoBehaviour
 }
 
 /// <summary>
-/// Простой компонент для автоматического возврата объекта в пул через заданное время
-/// Используется для VFX и временных эффектов
+/// Simple component for automatic pool return after specified time
+/// Used for VFX and temporary effects
 /// </summary>
 public class PooledObject : MonoBehaviour
 {
     [SerializeField] private float lifetimeSeconds = 2f;
-    
+
     private float timer;
 
     void OnEnable()
@@ -139,10 +139,10 @@ public class PooledObject : MonoBehaviour
     void Update()
     {
         timer += Time.deltaTime;
-        
+
         if (timer >= lifetimeSeconds)
         {
-            // Объект деактивируется и может быть возвращён в пул
+            // Object deactivates and can be returned to pool
             gameObject.SetActive(false);
         }
     }

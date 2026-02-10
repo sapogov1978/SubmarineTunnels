@@ -1,17 +1,21 @@
 using UnityEngine;
 
+/// <summary>
+/// Camera controller that follows the submarine on X axis only
+/// Y and Z positions remain fixed for consistent view
+/// </summary>
 public class CameraFollow : MonoBehaviour
 {
     [SerializeField] private Transform target;
     [SerializeField] private float smoothSpeed = 5f;
-    
+
     [Header("Camera Position")]
-    [SerializeField] private float cameraY = 0f;  // Camera stays at Y=0 (center)
-    [SerializeField] private float cameraZ = -10f; // Standard 2D camera Z
+    [SerializeField] private float cameraY = 0f;  // Fixed Y position (screen center)
+    [SerializeField] private float cameraZ = -10f; // Standard 2D camera Z depth
 
     void Start()
     {
-        // FIXED: Set camera position immediately on Start
+        // Set initial camera position immediately
         if (target)
         {
             transform.position = new Vector3(target.position.x, cameraY, cameraZ);
@@ -25,19 +29,19 @@ public class CameraFollow : MonoBehaviour
     private void LateUpdate()
     {
         if (!target) return;
-        
-        // ВАЖНО: Не следим за батискафом если игра закончилась
+
+        // Stop following when game is over
         if (GameManager.Instance != null && GameManager.Instance.IsGameOver())
             return;
 
-        // FIXED: Only follow X position, Y and Z are fixed
+        // Follow only on X axis, Y and Z remain fixed
         Vector3 targetPos = new Vector3(
             target.position.x,
-            cameraY,   // Camera Y never changes
-            cameraZ    // Camera Z never changes
+            cameraY,
+            cameraZ
         );
 
-        // Smooth follow on X axis only
+        // Smooth camera movement
         transform.position = Vector3.Lerp(
             transform.position,
             targetPos,

@@ -1,8 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Заглушка для AudioManager
-/// Полная реализация будет добавлена в День 13
+/// Audio manager placeholder
+/// Basic audio playback for SFX and music
+/// TODO: Add volume control, playlists, fade in/out, etc.
 /// </summary>
 public class AudioManager : MonoBehaviour
 {
@@ -25,7 +26,7 @@ public class AudioManager : MonoBehaviour
 
     void Start()
     {
-        // Создаём AudioSource компоненты если их нет
+        // Create AudioSource components if they don't exist
         if (musicSource == null)
         {
             musicSource = gameObject.AddComponent<AudioSource>();
@@ -42,7 +43,7 @@ public class AudioManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Воспроизвести звуковой эффект
+    /// Play sound effect
     /// </summary>
     public void PlaySFX(AudioClip clip)
     {
@@ -53,7 +54,7 @@ public class AudioManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Воспроизвести музыку
+    /// Play background music
     /// </summary>
     public void PlayMusic(AudioClip clip)
     {
@@ -65,7 +66,7 @@ public class AudioManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Остановить музыку
+    /// Stop background music
     /// </summary>
     public void StopMusic()
     {
@@ -75,5 +76,5 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    // TODO День 13: Добавить управление громкостью, плейлисты, fade in/out и т.д.
+    // TODO: Add volume control, playlists, fade in/out, etc.
 }

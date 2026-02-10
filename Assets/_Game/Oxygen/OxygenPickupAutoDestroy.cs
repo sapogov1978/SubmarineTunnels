@@ -1,14 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// Автоматически деактивирует кислородный баллон когда он уходит за пределы экрана
-/// Баллон возвращается в Object Pool для переиспользования
-/// День 7: Аналог ObstacleAutoDestroy для OxygenPickup
+/// Auto-deactivates oxygen pickup when it scrolls off-screen
+/// Returns pickup to object pool for reuse
+/// Similar to ObstacleAutoDestroy but for OxygenPickup
 /// </summary>
 [RequireComponent(typeof(OxygenPickup))]
 public class OxygenPickupAutoDestroy : MonoBehaviour
 {
-        private float destroyOffset = 2f; // дополнительное расстояние за пределами экрана
+    private float destroyOffset = 2f;  // Additional distance beyond screen edge
 
     private Camera mainCamera;
     private float bottomBoundary;
@@ -27,13 +27,14 @@ public class OxygenPickupAutoDestroy : MonoBehaviour
     {
         if (!mainCamera) return;
 
+        // Dynamic offset based on scroll speed
         if (RuntimeGameplayMetrics.ScrollSpeed > 0f)
             destroyOffset = RuntimeGameplayMetrics.ScrollSpeed;
 
-        // Вычисляем нижнюю границу экрана
+        // Calculate bottom screen boundary
         bottomBoundary = mainCamera.transform.position.y - mainCamera.orthographicSize - destroyOffset;
 
-        // Если баллон ушёл ниже границы - деактивируем
+        // Deactivate if pickup has scrolled below boundary
         if (transform.position.y < bottomBoundary)
         {
             DeactivatePickup();
@@ -41,13 +42,13 @@ public class OxygenPickupAutoDestroy : MonoBehaviour
     }
 
     /// <summary>
-    /// Деактивация кислородного баллона (возврат в пул)
+    /// Deactivate oxygen pickup (return to pool)
     /// </summary>
     private void DeactivatePickup()
     {
-        // Находим ObstacleSpawner и возвращаем объект в пул
+        // Find ObstacleSpawner and return object to pool
         ObstacleSpawner spawner = FindObjectOfType<ObstacleSpawner>();
-        
+
         if (spawner != null)
         {
             OxygenPickup pickup = GetComponent<OxygenPickup>();
@@ -55,7 +56,7 @@ public class OxygenPickupAutoDestroy : MonoBehaviour
         }
         else
         {
-            // Если spawner не найден - просто деактивируем
+            // Fallback: simply deactivate if spawner not found
             gameObject.SetActive(false);
         }
     }

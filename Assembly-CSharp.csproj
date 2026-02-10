@@ -79,8 +79,8 @@
     <Compile Include="Assets\_Game\Oxygen\OxygenManager.cs" />
     <Compile Include="Assets\_Game\Player\CollisionDetector.cs" />
     <Compile Include="Assets\_Game\Lights\LightBoostManager.cs" />
-    <Compile Include="Assets\_Game\Shaders\TunnelMaskController.cs" />
     <Compile Include="Assets\_Game\Core\RuntimeGameplayMetrics.cs" />
+    <Compile Include="Assets\_Game\Shaders\TunnelMaskController.cs" />
     <Compile Include="Assets\_Game\Tunnel\TunnelGenerator.cs" />
     <Compile Include="Assets\_Game\Oxygen\OxygenPickupAutoDestroy.cs" />
     <Compile Include="Assets\_Game\UI\GameOverUI.cs" />

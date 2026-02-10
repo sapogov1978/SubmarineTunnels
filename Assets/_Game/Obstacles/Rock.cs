@@ -1,16 +1,18 @@
 using UnityEngine;
 
 /// <summary>
-/// Камень - препятствие которое двигается вниз синхронно с туннелем
+/// Rock obstacle - static hazard that scrolls with the tunnel
+/// Damages submarine on collision and returns to pool
 /// </summary>
 public class Rock : Obstacle
 {
-    [Header("Movement")]
-    [SerializeField] private float scrollSpeed = 2f;
-
     void Update()
     {
-        // Движемся вниз синхронно с туннелем
+        // Move downward with tunnel scroll speed
+        float scrollSpeed = RuntimeGameplayMetrics.ScrollSpeed;
+        if (scrollSpeed <= 0f)
+            return;
+
         transform.Translate(Vector3.down * scrollSpeed * Time.deltaTime, Space.World);
     }
 
@@ -26,13 +28,5 @@ public class Rock : Obstacle
     {
         base.ResetObstacle();
         transform.rotation = Quaternion.identity;
-    }
-
-    /// <summary>
-    /// Устанавливает скорость скроллинга (вызывается из ObstacleSpawner)
-    /// </summary>
-    public void SetScrollSpeed(float speed)
-    {
-        scrollSpeed = speed;
     }
 }

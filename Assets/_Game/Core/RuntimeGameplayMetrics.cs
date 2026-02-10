@@ -6,7 +6,7 @@ public static class RuntimeGameplayMetrics
     public const float MinTunnelWidthDiagonalMultiplier = 2f;
     public const float MaxTunnelScreenFraction = 0.7f;
     public const float MinObstacleSpacingScrollSpeedMultiplier = 1.5f;
-    public const float PickupSizeMultiplier = 2f;
+    public const float PickupSizeMultiplier = 1.5f;
 
     public static float SubmarineWidth { get; private set; }
     public static float SubmarineLength { get; private set; }
@@ -14,6 +14,7 @@ public static class RuntimeGameplayMetrics
     public static float SafeMargin { get; private set; }
     public static float MinTunnelWidth { get; private set; }
     public static float MaxTunnelWidth { get; private set; }
+    public static float CurrentTunnelWidth { get; private set; }
     public static float ScreenSafeWidthWorld { get; private set; }
     public static float ScrollSpeed { get; private set; }
     public static float MinObstacleSpacingY { get; private set; }
@@ -75,6 +76,14 @@ public static class RuntimeGameplayMetrics
 
         ScrollSpeed = speed;
         MinObstacleSpacingY = speed * MinObstacleSpacingScrollSpeedMultiplier;
+    }
+
+    public static void UpdateCurrentTunnelWidth(float width)
+    {
+        if (width <= 0f) return;
+        CurrentTunnelWidth = width;
+        if (EnableDebugLogs)
+            Debug.Log($"[RuntimeGameplayMetrics] CurrentTunnelWidth={CurrentTunnelWidth:F3}");
     }
 
     private static float CalcSafeWidthWorld(Camera mainCamera)

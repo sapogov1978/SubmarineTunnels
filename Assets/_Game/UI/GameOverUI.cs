@@ -4,9 +4,9 @@ using UnityEngine.SceneManagement;
 using TMPro;
 
 /// <summary>
-/// Управляет экраном Game Over
-/// Показывает финальную статистику и кнопки управления
-/// День 6 FIX: Останавливает камеру shake перед паузой
+/// Manages Game Over screen
+/// Displays final statistics and control buttons
+/// Stops camera shake before pausing to prevent visual glitches
 /// </summary>
 public class GameOverUI : MonoBehaviour
 {
@@ -84,7 +84,7 @@ public class GameOverUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Вызывается когда игрок умирает
+    /// Called when player dies
     /// </summary>
     private void OnPlayerDied()
     {
@@ -99,8 +99,8 @@ public class GameOverUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Показывает экран Game Over
-    /// ДЕНЬ 6 FIX: Останавливает camera shake перед паузой
+    /// Show Game Over screen
+    /// Stops camera shake before pausing to prevent visual glitches
     /// </summary>
     public void Show(float distance = 0f, float bestDistance = 0f)
     {
@@ -109,7 +109,7 @@ public class GameOverUI : MonoBehaviour
         isShowing = true;
         gameOverPanel.SetActive(true);
 
-        // Обновляем текст статистики
+        // Update statistics text
         if (finalDistanceText != null)
         {
             finalDistanceText.text = $"Distance: {Mathf.RoundToInt(distance)}m";
@@ -130,16 +130,15 @@ public class GameOverUI : MonoBehaviour
             }
         }
 
-        // Воспроизводим звук
+        // Play game over sound
         if (gameOverSound != null && AudioManager.Instance != null)
         {
             AudioManager.Instance.PlaySFX(gameOverSound);
         }
 
         // ════════════════════════════════════════════════════════════
-        // ДЕНЬ 6 FIX: КРИТИЧНО!
-        // Останавливаем camera shake ПЕРЕД паузой
-        // Иначе камера будет дрожать как судорога
+        // CRITICAL: Stop camera shake BEFORE pausing
+        // Otherwise camera will shake violently during pause
         // ════════════════════════════════════════════════════════════
         if (mainCamera != null)
         {
@@ -255,7 +254,7 @@ public class GameOverUI : MonoBehaviour
     /// </summary>
     private float GetFinalDistance()
     {
-        // TODO День 12: Интегрировать с ProgressUI
+        // TODO: Integrate with ProgressUI system
         return Random.Range(100f, 2000f);
     }
 

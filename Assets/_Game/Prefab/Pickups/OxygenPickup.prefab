@@ -197,9 +197,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   oxygenAmount: 25
-  scrollSpeed: 2
   rotateWhileMoving: 1
-  rotationSpeed: 45
+  rotationSpeed: 22.5
   pickupEffectPrefab: {fileID: 0}
   pickupSound: {fileID: 0}
   showDebugLogs: 0
@@ -215,4 +214,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd9a93511e7c8f2449bd237f2721b497, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  destroyOffset: 2

@@ -1,8 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Обработчик столкновений батискафа
-/// День 6: Правильная работа с EdgeCollider2D для Bezier кривых
+/// Submarine collision handler
+/// Manages damage, visual feedback, and knockback from obstacles and tunnel walls
+/// Works with EdgeCollider2D for Bezier curve tunnels
 /// </summary>
 public class CollisionDetector : MonoBehaviour
 {
@@ -37,11 +38,11 @@ public class CollisionDetector : MonoBehaviour
     private Camera mainCamera;
     private Collider2D submarineCollider;
     private TunnelGenerator tunnelGenerator;
-    
-    // Cooldown для предотвращения множественных столкновений
-    private float collisionCooldown = 0.5f; // УВЕЛИЧЕНО с 0.1f до 0.5f
+
+    // Cooldown to prevent multiple collisions per frame
+    private float collisionCooldown = 0.5f;  // Increased from 0.1f to 0.5f
     private float lastCollisionTime = -1f;
-    private GameObject lastCollidedObject = null; // Отслеживаем предыдущий объект
+    private GameObject lastCollidedObject = null;  // Track previous collision object
 
     void Awake()
     {
@@ -54,8 +55,8 @@ public class CollisionDetector : MonoBehaviour
         mainCamera = Camera.main;
         submarineCollider = GetComponent<Collider2D>();
         tunnelGenerator = FindObjectOfType<TunnelGenerator>();
-        
-        // ДИАГНОСТИКА
+
+        // Component diagnostics
         Debug.Log($"[CollisionDetector] Initialized on {gameObject.name}");
         Debug.Log($"[CollisionDetector] SpriteRenderer: {(spriteRenderer != null ? "FOUND" : "NOT FOUND")}");
         Debug.Log($"[CollisionDetector] Collider2D: {(submarineCollider != null ? "FOUND" : "NOT FOUND")}");
@@ -64,11 +65,11 @@ public class CollisionDetector : MonoBehaviour
 
     void Update()
     {
-        // Обновляем красное мигание
+        // Update damage flash effect
         if (isFlashing)
         {
             flashTimer -= Time.deltaTime;
-            
+
             if (flashTimer <= 0f)
             {
                 isFlashing = false;
@@ -81,32 +82,32 @@ public class CollisionDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// Обработка столкновения с коллайдером (триггеры)
-    /// Для препятствий которые НЕ блокируют батискаф
+    /// Handle trigger collisions (non-blocking obstacles)
+    /// For obstacles that DON'T block submarine movement
     /// </summary>
     private void OnTriggerEnter2D(Collider2D collision)
     {
         Debug.Log($"[CollisionDetector] OnTriggerEnter2D: {collision.gameObject.name}");
-        
-        // Если это тот же объект что и в прошлый раз → выход (вход-выход)
+
+        // Ignore if same object as last collision (entry-exit flicker prevention)
         if (collision.gameObject == lastCollidedObject)
             return;
 
-        // Проверяем cooldown чтобы избежать множественных столкновений за один кадр
+        // Check cooldown to avoid multiple collisions per frame
         if (Time.time - lastCollisionTime < collisionCooldown)
             return;
 
         lastCollidedObject = collision.gameObject;
         lastCollisionTime = Time.time;
 
-        // Столкновение с препятствием (Rock, Debris)
+        // Collision with obstacle (Rock, Debris)
         if (collision.CompareTag("Obstacle"))
         {
             HandleObstacleCollision(collision.gameObject);
             return;
         }
 
-        // На случай если стены настроены как trigger
+        // Handle walls configured as triggers
         if (collision.CompareTag("TunnelWall"))
         {
             HandleWallCollision(collision);
@@ -114,22 +115,22 @@ public class CollisionDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// Обработка ФИЗИЧЕСКОГО столкновения со стенками туннеля
-    /// Это нужно для батискафа с Kinematic Rigidbody2D
-    /// OnTriggerEnter2D не срабатывает при Kinematic, поэтому используем OnCollisionEnter2D
+    /// Handle physical collision with tunnel walls
+    /// Required for submarine with Kinematic Rigidbody2D
+    /// OnTriggerEnter2D doesn't fire with Kinematic, so we use OnCollisionEnter2D
     /// </summary>
     private void OnCollisionEnter2D(Collision2D collision)
     {
         Debug.Log($"[CollisionDetector] OnCollisionEnter2D: {collision.gameObject.name}, Tag: {collision.gameObject.tag}");
-        
-        // Проверяем что столкнулись со стеной (у неё тег TunnelWall)
+
+        // Check if collided with tunnel wall
         if (collision.gameObject.CompareTag("TunnelWall"))
         {
-            // Если это тот же объект что и в прошлый раз → выход (вход-выход)
+            // Ignore if same object as last collision
             if (collision.gameObject == lastCollidedObject)
                 return;
 
-            // Проверяем cooldown
+            // Check cooldown
             if (Time.time - lastCollisionTime < collisionCooldown)
                 return;
 
@@ -141,7 +142,7 @@ public class CollisionDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// Обработка столкновения с препятствием
+    /// Handle collision with obstacle
     /// </summary>
     private void HandleObstacleCollision(GameObject obstacle)
     {
@@ -159,10 +160,10 @@ public class CollisionDetector : MonoBehaviour
                 Debug.Log($"[CollisionDetector] Damage: -{obstacleDamage}% | {oxygenBefore:F0}% → {oxygenAfter:F0}%");
         }
 
-        // Визуальный фидбек
+        // Visual feedback
         PlayDamageFeedback();
 
-        // Звуковой эффект
+        // Sound effect
         PlayCollisionSound();
     }
 
@@ -285,11 +286,11 @@ public class CollisionDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// Visual feedback on damage.
+    /// Visual feedback on damage
     /// </summary>
     private void PlayDamageFeedback()
     {
-        // Красное мигание
+        // Red flash effect
         if (spriteRenderer != null)
         {
             spriteRenderer.color = damageFlashColor;
@@ -302,7 +303,7 @@ public class CollisionDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// Тряска камеры при столкновении
+    /// Shake camera on collision
     /// </summary>
     private void ShakeCamera()
     {
@@ -311,7 +312,7 @@ public class CollisionDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// Корутина для тряски камеры
+    /// Camera shake coroutine
     /// </summary>
     private System.Collections.IEnumerator CameraShakeRoutine()
     {
@@ -320,22 +321,22 @@ public class CollisionDetector : MonoBehaviour
 
         while (elapsed < shakeDuration)
         {
-            // Проверяем не на паузе ли мы (Time.timeScale == 0)
+            // Check if not paused (Time.timeScale == 0)
             if (Time.timeScale > 0)
             {
                 elapsed += Time.deltaTime;
-                
-                // Случайное смещение в пределах magnitude
+
+                // Random offset within magnitude bounds
                 float offsetX = Random.Range(-shakeMagnitude, shakeMagnitude);
                 float offsetY = Random.Range(-shakeMagnitude, shakeMagnitude);
-                
+
                 mainCamera.transform.position = originalPos + new Vector3(offsetX, offsetY, 0f);
             }
-            
+
             yield return null;
         }
 
-        // ВАЖНО: Возвращаем камеру в исходное положение после shake
+        // IMPORTANT: Return camera to original position after shake
         if (mainCamera != null)
         {
             mainCamera.transform.position = originalPos;
@@ -343,7 +344,7 @@ public class CollisionDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// Воспроизвести звук столкновения
+    /// Play collision sound effect
     /// </summary>
     private void PlayCollisionSound()
     {
@@ -354,7 +355,7 @@ public class CollisionDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// Установить урон от препятствия (для балансировки)
+    /// Set obstacle damage (for balancing)
     /// </summary>
     public void SetObstacleDamage(float damage)
     {
@@ -362,14 +363,14 @@ public class CollisionDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// Установить урон от стенки (для балансировки)
+    /// Set wall damage (for balancing)
     /// </summary>
     public void SetWallDamage(float damage)
     {
         wallDamage = damage;
     }
 
-    // DEBUG методы для тестирования
+    // Test methods for debugging
     #if UNITY_EDITOR
     [ContextMenu("Test: Simulate Obstacle Hit")]
     private void TestObstacleHit()
