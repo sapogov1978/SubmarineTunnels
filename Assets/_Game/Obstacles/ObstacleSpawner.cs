@@ -233,8 +233,6 @@ public class ObstacleSpawner : MonoBehaviour
         bool spawnLeft = Random.value > 0.5f;
         // Wall normal points INWARD to tunnel: left wall → right normal, right wall → left normal
         Vector2 wallNormal = spawnLeft ? Vector2.right : Vector2.left;
-        float randomFactor = Random.Range(0.3f, 1.0f);
-        float targetLongLength = availableWidth * randomFactor;
 
         ObstacleGeometry geometry = spawnRock ? rockGeometry : debrisGeometry;
         bool geometryReady = spawnRock ? rockGeometryReady : debrisGeometryReady;
@@ -243,6 +241,21 @@ public class ObstacleSpawner : MonoBehaviour
             if (showDebugLogs)
                 Debug.LogWarning("[ObstacleSpawner] Obstacle geometry not ready. Skipping obstacle spawn.");
             return false;
+        }
+
+        // Calculate target size and scale
+        float targetLongLength;
+        if (spawnRock)
+        {
+            // Rock: random size from 30% to 100% of available width
+            float randomFactor = Random.Range(0.3f, 1.0f);
+            targetLongLength = availableWidth * randomFactor;
+        }
+        else
+        {
+            // Debris: FIXED size = 70% of max submarine dimension (prevents performance issues)
+            float submarineMaxSize = Mathf.Max(RuntimeGameplayMetrics.SubmarineWidth, RuntimeGameplayMetrics.SubmarineLength);
+            targetLongLength = submarineMaxSize * 0.7f;
         }
 
         float scaleFactor = targetLongLength / geometry.longRefLength;
@@ -264,11 +277,15 @@ public class ObstacleSpawner : MonoBehaviour
             debris.transform.position = pos;
             debris.transform.rotation = rot;
             debris.transform.localScale = new Vector3(scaleFactor, scaleFactor, 1f);
+
+            // Update debris radius for wall collision detection
+            float debrisRadius = targetLongLength * 0.5f;
+            debris.SetRadius(debrisRadius);
         }
 
         if (showDebugLogs)
         {
-            Debug.Log($"[ObstacleSpawner] Spawned {(spawnRock ? "Rock" : "Debris")} at ({spawnX:F2}, {spawnY:F2}), tunnelWidth={tunnelWidth:F3}, safePassage={safePassage:F3}, availableWidth={availableWidth:F3}, randomFactor={randomFactor:F2}, targetLongLength={targetLongLength:F3}, scale={scaleFactor:F3}");
+            Debug.Log($"[ObstacleSpawner] Spawned {(spawnRock ? "Rock" : "Debris")} at ({spawnX:F2}, {spawnY:F2}), targetSize={targetLongLength:F3}, scale={scaleFactor:F3}");
         }
 
         lastObstacleY = spacingY;

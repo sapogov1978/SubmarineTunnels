@@ -18,6 +18,10 @@ public class Debris : Obstacle
     private float startX;
     private float debrisRadius = 0.12f;
     private TunnelGenerator tunnelGenerator;
+    private float cachedLeftWall;
+    private float cachedRightWall;
+    private float cachedWallY;
+    private bool wallsCached = false;
 
     void Start()
     {
@@ -49,12 +53,23 @@ public class Debris : Obstacle
             Vector3 pos = transform.position;
             pos.x = startX + offsetX;
 
-            // Constrain to tunnel boundaries (dynamic)
-            if (tunnelGenerator != null && TryGetTunnelBounds(pos.y, out float leftWall, out float rightWall))
+            // OPTIMIZATION: Cache wall bounds, only update if Y position changed significantly
+            bool needsUpdate = !wallsCached || Mathf.Abs(pos.y - cachedWallY) > 1.5f;
+
+            if (needsUpdate && tunnelGenerator != null && TryGetTunnelBounds(pos.y, out float leftWall, out float rightWall))
+            {
+                cachedLeftWall = leftWall;
+                cachedRightWall = rightWall;
+                cachedWallY = pos.y;
+                wallsCached = true;
+            }
+
+            // Constrain to tunnel boundaries
+            if (wallsCached)
             {
                 // Add margin to prevent debris from touching walls
-                float minX = leftWall + debrisRadius + wallMargin;
-                float maxX = rightWall - debrisRadius - wallMargin;
+                float minX = cachedLeftWall + debrisRadius + wallMargin;
+                float maxX = cachedRightWall - debrisRadius - wallMargin;
                 pos.x = Mathf.Clamp(pos.x, minX, maxX);
             }
             else
@@ -115,6 +130,7 @@ public class Debris : Obstacle
         driftTimer = Random.Range(0f, 2f * Mathf.PI);
         if (transform.position.x != 0)
             startX = transform.position.x;
+        wallsCached = false; // Clear cache on reset
     }
 
     public void SetRadius(float radius)

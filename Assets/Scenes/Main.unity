@@ -963,7 +963,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   boostDuration: 20
-  startWithBoost: 0
+  startWithBoost: 1
   showDebugLogs: 1
 --- !u!4 &1157295928
 Transform:
@@ -1328,22 +1328,11 @@ MonoBehaviour:
   oxygenPickupPrefab: {fileID: 3389034415734453921, guid: ba6434feb23568a489161f2fe6f9e71d, type: 3}
   adBoostPickupPrefab: {fileID: 4232622947085703552, guid: 0d347705e07545447b67a6799e422bab, type: 3}
   spawnChance: 0.8
-  minObstacleSpacingY: 0
   oxygenSpawnInterval: 12
   oxygenAmount: 25
-  oxygenPickupScale: 0.08
   spawnOxygenEnabled: 1
   adBoostSpawnInterval: 35
-  adBoostPickupScale: 0.15
   spawnAdBoostEnabled: 1
-  maxRockHalfWidth: 0.15
-  maxDebrisHalfWidth: 0.12
-  minObstacleHalfWidth: 0.08
-  minObstacleWidthFractionOfTunnel: 0.2
-  rockMinFractionOfMax: 0.7
-  passageWidthMultiplier: 1.5
-  autoCalibrateSizes: 1
-  showCalibrationInfo: 1
   initialRockPoolSize: 60
   initialDebrisPoolSize: 20
   initialOxygenPoolSize: 5
@@ -1504,9 +1493,6 @@ MonoBehaviour:
   segmentPrefab: {fileID: 561721746}
   segmentHeight: 1
   tunnelWidth: 2
-  minTunnelWidth: 0.35
-  maxTunnelWidth: 3
-  scrollSpeed: 2
   mainCamera: {fileID: 1549150839}
   obstacleSpawner: {fileID: 1436356513}
   safeStartSegments: 10
@@ -2350,8 +2336,40 @@ PrefabInstance:
       value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: edgeColor.a
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: edgeColor.b
+      value: 0.3962264
+      objectReference: {fileID: 0}
+    - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: edgeColor.g
+      value: 0.13182153
+      objectReference: {fileID: 0}
+    - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: edgeColor.r
+      value: 0.024296913
+      objectReference: {fileID: 0}
+    - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
       propertyPath: scrollSpeed
       value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: centerColor.a
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: centerColor.b
+      value: 0.1981132
+      objectReference: {fileID: 0}
+    - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: centerColor.g
+      value: 0.032707363
+      objectReference: {fileID: 0}
+    - target: {fileID: 2993288690091246438, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
+      propertyPath: centerColor.r
+      value: 0.032707363
       objectReference: {fileID: 0}
     - target: {fileID: 4330020006176158501, guid: c0731e5a45479a647bc9dac6438e79bb, type: 3}
       propertyPath: m_TagString

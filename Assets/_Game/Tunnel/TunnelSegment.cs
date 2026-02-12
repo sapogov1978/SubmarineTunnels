@@ -21,7 +21,11 @@ public class TunnelSegment : MonoBehaviour
     [Header("Visual")]
     [SerializeField] private LineRenderer leftWall;
     [SerializeField] private LineRenderer rightWall;
+    [SerializeField] private MeshFilter cylinderGradientMesh;  // Cylinder floor gradient visualization
     [SerializeField] private int resolution = 200;  // High resolution for smooth visual curves
+    [SerializeField] private Color centerColor = new Color(0.1f, 0.1f, 0.15f, 0.9f);  // Dark center (cylinder bottom)
+    [SerializeField] private Color edgeColor = new Color(0.4f, 0.4f, 0.5f, 0.3f);  // Light edges (near walls)
+    [SerializeField] private int gradientResolution = 50;  // Resolution for gradient mesh
 
     [Header("Collision")]
     [SerializeField] private int collisionResolution = 50;  // Lower than visual but accurate enough
@@ -48,6 +52,12 @@ public class TunnelSegment : MonoBehaviour
     {
         BuildWall(leftWall, leftStart, leftControl1, leftControl2, leftEnd);
         BuildWall(rightWall, rightStart, rightControl1, rightControl2, rightEnd);
+
+        // Build cylinder gradient visualization
+        if (cylinderGradientMesh != null)
+        {
+            BuildCylinderGradient();
+        }
 
         // Cache segment height for later calculations
         segmentHeight = Mathf.Max(leftEnd.y, rightEnd.y);
@@ -171,6 +181,77 @@ public class TunnelSegment : MonoBehaviour
             Vector2 point = CubicBezier(p0, p1, p2, p3, t);
             lr.SetPosition(i, point);
         }
+    }
+
+    /// <summary>
+    /// Build cylinder gradient showing tunnel depth
+    /// Creates gradient mesh: dark in center (bottom), light at edges (walls)
+    /// </summary>
+    private void BuildCylinderGradient()
+    {
+        // Calculate segment height
+        float height = Mathf.Max(leftEnd.y, rightEnd.y);
+
+        // Create mesh data
+        List<Vector3> vertices = new List<Vector3>();
+        List<Color> colors = new List<Color>();
+        List<int> triangles = new List<int>();
+
+        int heightSteps = Mathf.Max(2, Mathf.CeilToInt(height / 0.1f));  // Vertical resolution
+        int widthSteps = gradientResolution;  // Horizontal resolution for gradient
+
+        // Build mesh grid
+        for (int y = 0; y < heightSteps; y++)
+        {
+            float tY = y / (float)(heightSteps - 1);
+            float posY = height * tY;
+
+            // Get wall positions at this Y
+            Vector2 leftPoint = CubicBezier(leftStart, leftControl1, leftControl2, leftEnd, tY);
+            Vector2 rightPoint = CubicBezier(rightStart, rightControl1, rightControl2, rightEnd, tY);
+            float width = rightPoint.x - leftPoint.x;
+
+            // Create vertices across width with gradient
+            for (int x = 0; x < widthSteps; x++)
+            {
+                float tX = x / (float)(widthSteps - 1);
+                float posX = Mathf.Lerp(leftPoint.x, rightPoint.x, tX);
+
+                vertices.Add(new Vector3(posX, posY, 0));
+
+                // Gradient: dark at center, light at edges (cylinder effect)
+                float distFromCenter = Mathf.Abs(tX - 0.5f) * 2f;  // 0 at center, 1 at edges
+                Color vertexColor = Color.Lerp(centerColor, edgeColor, distFromCenter);
+                colors.Add(vertexColor);
+            }
+        }
+
+        // Build triangles
+        for (int y = 0; y < heightSteps - 1; y++)
+        {
+            for (int x = 0; x < widthSteps - 1; x++)
+            {
+                int i = y * widthSteps + x;
+
+                // Two triangles per quad
+                triangles.Add(i);
+                triangles.Add(i + widthSteps);
+                triangles.Add(i + 1);
+
+                triangles.Add(i + 1);
+                triangles.Add(i + widthSteps);
+                triangles.Add(i + widthSteps + 1);
+            }
+        }
+
+        // Create and assign mesh
+        Mesh mesh = new Mesh();
+        mesh.vertices = vertices.ToArray();
+        mesh.colors = colors.ToArray();
+        mesh.triangles = triangles.ToArray();
+        mesh.RecalculateNormals();
+
+        cylinderGradientMesh.mesh = mesh;
     }
 
     /// <summary>

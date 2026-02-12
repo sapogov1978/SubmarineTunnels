@@ -26,10 +26,12 @@ public class OxygenPickup : MonoBehaviour
     void Start()
     {
         // Validate components in debug mode
+#if UNITY_EDITOR
         if (showDebugLogs)
         {
             ValidateComponents();
         }
+#endif
     }
 
     void Update()
